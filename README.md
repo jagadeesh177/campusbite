@@ -113,7 +113,7 @@ Created by the seed. **Never shown on login pages.** Delete or change them befor
 | Portal | Email | Password | Notes |
 |---|---|---|---|
 | Student | `aarav.sharma@college.edu` | `Student@123` | 10 seeded students (see `src/lib/college/mock-provider.ts`), all share this password |
-| Staff (admin) | `admin@college.edu` | `Staff@123` | every staff permission |
+| Staff (admin) | `admin@college.edu` | `Staff@123` | every staff permission. **Local seed only** — the live demo's admin password has been changed and is not published |
 | Staff (accounts) | `finance@college.edu` | `Staff@123` | students, payments, reports, audit only |
 | Canteen (manager) | `kitchen@college.edu` | `Canteen@123` | orders, menu, settings |
 | Canteen (counter) | `counter@college.edu` | `Canteen@123` | orders only |
