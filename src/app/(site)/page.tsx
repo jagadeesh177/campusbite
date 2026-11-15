@@ -110,7 +110,7 @@ export default async function LandingPage() {
                   { name: 'Coffee', img: '/food/coffee.jpg', qty: 2, price: 4000 },
                 ].map((i) => (
                   <div key={i.name} className="flex items-center gap-3">
-                    <FoodImage src={i.img} alt="" className="h-11 w-11 shrink-0 rounded-xl" />
+                    <FoodImage src={i.img} alt="" eager className="h-11 w-11 shrink-0 rounded-xl" />
                     <div className="flex-1 text-sm font-medium">{i.name} <span className="text-muted">× {i.qty}</span></div>
                     <div className="text-sm font-semibold tabular-nums">{formatINR(i.price)}</div>
                   </div>

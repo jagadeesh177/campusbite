@@ -116,11 +116,22 @@ export function StatCard({
 }
 
 /* eslint-disable @next/next/no-img-element */
-export function FoodImage({ src, alt, className }: { src: string | null; alt: string; className?: string }) {
+export function FoodImage({
+  src,
+  alt,
+  className,
+  eager,
+}: {
+  src: string | null
+  alt: string
+  className?: string
+  /** Load immediately (for above-the-fold images) */
+  eager?: boolean
+}) {
   return (
     <div className={cn('overflow-hidden bg-accent-soft', className)}>
       {src ? (
-        <img src={src} alt={alt} loading="lazy" className="h-full w-full object-cover" />
+        <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" className="h-full w-full object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-3xl" aria-hidden>
           🍽️
