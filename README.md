@@ -114,8 +114,8 @@ Created by the seed. **Never shown on login pages.** Delete or change them befor
 |---|---|---|---|
 | Student | `aarav.sharma@college.edu` | `Student@123` | 10 seeded students (see `src/lib/college/mock-provider.ts`), all share this password |
 | Staff (admin) | `admin@college.edu` | `Staff@123` | every staff permission. **Local seed only** — the live demo's admin password has been changed and is not published |
-| Staff (accounts) | `finance@college.edu` | `Staff@123` | students, payments, reports, audit only |
-| Canteen (manager) | `kitchen@college.edu` | `Canteen@123` | orders, menu, settings |
+| Staff (accounts) | `finance@college.edu` | `Staff@123` | students, payments, reports, audit only. **Local seed only** on the live demo |
+| Canteen (manager) | `kitchen@college.edu` | `Canteen@123` | orders, menu, settings. **Local seed only** on the live demo |
 | Canteen (counter) | `counter@college.edu` | `Canteen@123` | orders only |
 
 **Try student activation:** go to `/activate` with `neha.rao@college.edu` or `karan.mehta@college.edu` (enrolled in the mock directory but not yet activated). The code appears in the dev mailbox at `/dev/mailbox`. `old.graduate@college.edu` is refused (not enrolled); Gmail addresses are refused.
