@@ -1,7 +1,7 @@
 import 'server-only'
 import { env } from '@/lib/env'
 import { CollegeApiProvider } from './college-api-provider'
-import { MockCollegeProvider } from './mock-provider'
+import { MOCK_COLLEGE_DIRECTORY, MockCollegeProvider, parseExtraStudents } from './mock-provider'
 import type { CollegeIntegrationProvider } from './types'
 
 export type { CollegeIntegrationProvider } from './types'
@@ -19,7 +19,8 @@ export function getCollegeProvider(): CollegeIntegrationProvider {
       if (env.isProduction) {
         console.warn('[college] Using MOCK college provider in production — pilot/demo only')
       }
-      provider = new MockCollegeProvider()
+      // Extra pilot students come from a private env var so real emails never land in the repo
+      provider = new MockCollegeProvider([...MOCK_COLLEGE_DIRECTORY, ...parseExtraStudents(process.env.MOCK_EXTRA_STUDENTS)])
       break
     case 'college-api':
       provider = new CollegeApiProvider(

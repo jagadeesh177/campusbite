@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { audit } from '@/lib/audit'
 import { AppError } from '@/lib/errors'
-import { sendEmail } from '@/lib/email'
+import { activationEmail, sendEmail } from '@/lib/email'
 import { getCollegeProvider, isAllowedCollegeEmail } from '@/lib/college'
 import { safeEqualHex } from '@/lib/payments/signatures'
 import { enforceRateLimit } from './rate-limit'
@@ -71,11 +71,12 @@ export async function startStudentActivation(rawEmail: string, ip: string | null
       },
     }),
   ])
-  await sendEmail({
-    to: email,
-    subject: 'Your CampusBite activation code',
-    text: `Your CampusBite activation code is ${code}.\n\nIt expires in 10 minutes. If you didn't request this, you can ignore this email.`,
-  })
+  try {
+    await sendEmail({ to: email, ...activationEmail(code) })
+  } catch (e) {
+    console.error('[activation] email delivery failed', e)
+    throw new AppError('UNAVAILABLE', 'We could not send the code right now. Please try again in a few minutes.')
+  }
 }
 
 /** Step 2: verify code, re-confirm eligibility, create the local account. */

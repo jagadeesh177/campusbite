@@ -130,6 +130,26 @@ describe('mock college provider (student eligibility)', () => {
   })
 })
 
+describe('extra pilot students from env', () => {
+  it('parses valid entries, normalises email, skips junk', async () => {
+    const { parseExtraStudents } = await import('@/lib/college/mock-provider')
+    const list = parseExtraStudents(
+      JSON.stringify([
+        { studentId: 'X1', email: ' Someone@Uni.EDU ', fullName: 'Some One', programme: 'B.Tech' },
+        { email: 'missing-id@uni.edu', fullName: 'Nope' },
+        'garbage',
+      ]),
+    )
+    expect(list).toEqual([
+      { studentId: 'X1', email: 'someone@uni.edu', fullName: 'Some One', programme: 'B.Tech', department: undefined, yearOfStudy: undefined, enrollmentStatus: 'ENROLLED' },
+    ])
+    expect(parseExtraStudents('not json')).toEqual([])
+    expect(parseExtraStudents(undefined)).toEqual([])
+    const p = new MockCollegeProvider(list)
+    expect(await p.verifyStudent('SOMEONE@uni.edu')).toEqual({ eligible: true, studentId: 'X1' })
+  })
+})
+
 describe('time & pickup slots', () => {
   const tz = 'Asia/Kolkata'
   it('computes local minutes in IST', () => {

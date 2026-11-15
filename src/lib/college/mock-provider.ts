@@ -30,6 +30,33 @@ export const MOCK_COLLEGE_DIRECTORY: CollegeStudentRecord[] = [
   { studentId: '20CS050', email: 'old.graduate@college.edu', fullName: 'Rahul Das', department: 'Computer Science', programme: 'B.Tech', yearOfStudy: 4, enrollmentStatus: 'NOT_ENROLLED' },
 ]
 
+/**
+ * Parses MOCK_EXTRA_STUDENTS (JSON array) — lets a pilot add real students to
+ * the mock directory without committing their emails. Invalid entries are skipped.
+ * Example: [{"studentId":"24CS001","email":"name@college.edu","fullName":"Name","programme":"B.Tech"}]
+ */
+export function parseExtraStudents(raw: string | undefined): CollegeStudentRecord[] {
+  if (!raw) return []
+  try {
+    const list = JSON.parse(raw)
+    if (!Array.isArray(list)) return []
+    return list
+      .filter((s) => s && typeof s.studentId === 'string' && typeof s.email === 'string' && typeof s.fullName === 'string')
+      .map((s) => ({
+        studentId: s.studentId,
+        email: String(s.email).trim().toLowerCase(),
+        fullName: s.fullName,
+        department: typeof s.department === 'string' ? s.department : undefined,
+        programme: typeof s.programme === 'string' ? s.programme : undefined,
+        yearOfStudy: typeof s.yearOfStudy === 'number' ? s.yearOfStudy : undefined,
+        enrollmentStatus: s.enrollmentStatus === 'NOT_ENROLLED' ? 'NOT_ENROLLED' : 'ENROLLED',
+      }))
+  } catch {
+    console.error('[college] MOCK_EXTRA_STUDENTS is not valid JSON — ignored')
+    return []
+  }
+}
+
 export class MockCollegeProvider implements CollegeIntegrationProvider {
   readonly id = 'mock'
   readonly displayName = 'Mock college directory (development)'
