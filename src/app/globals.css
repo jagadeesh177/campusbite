@@ -1,26 +1,101 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==========================================================================
+   CampusBite — Fresh & Premium design tokens
+   Every colour in the app comes from here. Change a value once and the whole
+   product updates. Tailwind exposes each as utilities: bg-primary,
+   text-ink, border-line, bg-accent-soft, shadow-card, etc.
+   ========================================================================== */
+
+@theme {
+  /* Brand palette */
+  --color-bg: #F8FAF7;            /* app background */
+  --color-surface: #FFFFFF;       /* cards */
+  --color-primary: #173F35;       /* primary CTAs, nav highlights */
+  --color-primary-hover: #245B4B;
+  --color-primary-soft: #E7EFEB;  /* subtle primary tint (active nav bg) */
+  --color-accent: #28A879;        /* badges, active states, icons, progress — never body text */
+  --color-accent-soft: #E3F4EC;
+  --color-accent-ink: #1B7A57;    /* accent-family text with AA contrast */
+  --color-ink: #26332F;           /* main text */
+  --color-muted: #75817B;         /* secondary text (≥14px) */
+  --color-subtle: #66716B;        /* small captions: deeper so tiny text stays AA */
+  --color-line: #E5EBE6;          /* borders */
+
+  /* Feedback */
+  --color-success: #168653;
+  --color-success-soft: #E2F3EA;
+  --color-warning: #E9A23B;
+  --color-warning-soft: #FDF3E2;
+  --color-warning-ink: #8A5A12;
+  --color-danger: #D94B4B;
+  --color-danger-soft: #FBEAEA;
+  --color-danger-ink: #B23434;
+
+  /* Extra tints so every order status is distinguishable */
+  --color-info: #2F6FB5;
+  --color-info-soft: #E9F1FA;
+  --color-info-ink: #23548A;
+  --color-violet: #7357B0;
+  --color-violet-soft: #F0EBF9;
+  --color-violet-ink: #5A3F94;
+
+  /* Type */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Elevation (tinted with the brand green so shadows feel warm, not grey) */
+  --shadow-card: 0 1px 2px rgb(23 63 53 / 0.04), 0 4px 14px rgb(23 63 53 / 0.05);
+  --shadow-lift: 0 2px 6px rgb(23 63 53 / 0.06), 0 16px 36px rgb(23 63 53 / 0.09);
+  --shadow-focus: 0 0 0 3px rgb(40 168 121 / 0.28);
+
+  --radius-card: 1rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
+}
+
+/* Visible, on-brand keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes cb-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.cb-pulse { animation: cb-pulse 1.6s ease-in-out infinite; }
+
+/* Native <dialog> backdrop for confirmation dialogs */
+dialog::backdrop {
+  background: rgb(23 63 53 / 0.35);
+  backdrop-filter: blur(2px);
 }

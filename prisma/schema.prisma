@@ -1,0 +1,449 @@
+// CampusBite — relational schema (PostgreSQL)
+// Money is stored as DECIMAL(10,2) in INR. Business logic converts to integer
+// paise (see src/lib/money.ts) so arithmetic never uses floating point.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  STUDENT
+  STAFF
+  CANTEEN
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  DEACTIVATED
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  NOT_ENROLLED
+  UNKNOWN
+}
+
+enum OrderStatus {
+  PAYMENT_PENDING
+  CONFIRMED
+  ACCEPTED
+  PREPARING
+  READY
+  COLLECTED
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  SIMULATOR
+}
+
+enum PaymentStatus {
+  CREATED
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum RefundStatus {
+  PENDING
+  /// Claimed by one worker; prevents double refunds on concurrent clicks
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum VerificationPurpose {
+  STUDENT_ACTIVATION
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+model User {
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  name               String
+  passwordHash       String?
+  role               Role
+  status             UserStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt    DateTime?
+  mustChangePassword Boolean    @default(false)
+  lastLoginAt        DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  studentProfile   StudentProfile?
+  staffProfile     StaffProfile?
+  canteenProfile   CanteenProfile?
+  sessions         Session[]
+  orders           Order[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]           @relation("AuditActor")
+  statusChanges    OrderStatusHistory[] @relation("StatusChangedBy")
+  refundsInitiated Refund[]             @relation("RefundInitiatedBy")
+  pickupsVerified  PickupToken[]        @relation("PickupVerifiedBy")
+
+  @@index([role, status])
+}
+
+/// Local CampusBite profile for a student. Created only when a student
+/// activates their account — we do NOT mirror the college's student database.
+model StudentProfile {
+  id                  String           @id @default(cuid())
+  userId              String           @unique
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// College-issued student identifier (from the integration provider)
+  externalStudentId   String           @unique
+  /// Which integration provider verified this student (e.g. "mock", "college-api")
+  integrationSource   String
+  department          String?
+  programme           String?
+  yearOfStudy         Int?
+  enrollmentStatus    EnrollmentStatus @default(UNKNOWN)
+  enrollmentCheckedAt DateTime?
+  // Non-sensitive, student-editable preferences
+  phone               String?
+  dietaryPreference   String?
+  orderUpdatesEnabled Boolean          @default(true)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+}
+
+model StaffProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String?
+  /// See src/lib/auth/permissions.ts (STAFF_PERMISSIONS)
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CanteenProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  counterName String?
+  /// See src/lib/auth/permissions.ts (CANTEEN_PERMISSIONS)
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  /// SHA-256 of the random session token; the raw token only lives in the cookie
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  ip         String?
+  userAgent  String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model VerificationCode {
+  id         String              @id @default(cuid())
+  email      String
+  purpose    VerificationPurpose
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int                 @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime            @default(now())
+
+  @@index([email, purpose])
+}
+
+/// Development-only outbox. Real deployments use an email provider.
+model DevMailMessage {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model RateLimitBucket {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+}
+
+// ---------------------------------------------------------------------------
+// Menu
+// ---------------------------------------------------------------------------
+
+model FoodCategory {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  slug        String     @unique
+  description String?
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  items       FoodItem[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model FoodItem {
+  id              String       @id @default(cuid())
+  name            String
+  slug            String       @unique
+  description     String
+  price           Decimal      @db.Decimal(10, 2)
+  imageUrl        String?
+  isVeg           Boolean      @default(true)
+  isAvailable     Boolean      @default(true)
+  isPopular       Boolean      @default(false)
+  prepTimeMinutes Int          @default(10)
+  categoryId      String
+  category        FoodCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems      OrderItem[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([categoryId, isAvailable])
+}
+
+/// Uploaded food photos, stored in Postgres so uploads work on serverless
+/// hosts without a separate object store. Served by /api/images/[id].
+model FoodImage {
+  id        String   @id @default(cuid())
+  data      Bytes
+  mimeType  String
+  size      Int
+  createdAt DateTime @default(now())
+}
+
+model KitchenSettings {
+  id                  String   @id @default("default")
+  acceptingOrders     Boolean  @default(true)
+  pauseMessage        String?
+  maxConcurrentOrders Int      @default(40)
+  defaultPrepMinutes  Int      @default(15)
+  pickupSlotMinutes   Int      @default(15)
+  /// "HH:mm" in APP_TIMEZONE
+  openingTime         String   @default("08:00")
+  closingTime         String   @default("18:00")
+  convenienceFee      Decimal  @default(2.00) @db.Decimal(10, 2)
+  updatedById         String?
+  updatedAt           DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Orders & payments
+// ---------------------------------------------------------------------------
+
+model Order {
+  id               String      @id @default(cuid())
+  orderNumber      String      @unique
+  userId           String
+  user             User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status           OrderStatus @default(PAYMENT_PENDING)
+  subtotal         Decimal     @db.Decimal(10, 2)
+  fees             Decimal     @db.Decimal(10, 2)
+  total            Decimal     @db.Decimal(10, 2)
+  currency         String      @default("INR")
+  /// Client-generated per checkout attempt; prevents duplicate orders
+  idempotencyKey   String
+  pickupSlotStart  DateTime?
+  estimatedReadyAt DateTime?
+  cancelReason     String?
+  confirmedAt      DateTime?
+  acceptedAt       DateTime?
+  readyAt          DateTime?
+  collectedAt      DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  items         OrderItem[]
+  payments      Payment[]
+  refunds       Refund[]
+  pickupToken   PickupToken?
+  history       OrderStatusHistory[]
+  notifications Notification[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  foodItemId   String
+  foodItem     FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Restrict)
+  /// Snapshots taken at order time — later menu edits never change past orders
+  nameSnapshot String
+  unitPrice    Decimal  @db.Decimal(10, 2)
+  quantity     Int
+  lineTotal    Decimal  @db.Decimal(10, 2)
+
+  @@index([orderId])
+  @@index([foodItemId])
+}
+
+model Payment {
+  id               String          @id @default(cuid())
+  orderId          String
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  provider         PaymentProvider
+  status           PaymentStatus   @default(CREATED)
+  amount           Decimal         @db.Decimal(10, 2)
+  currency         String          @default("INR")
+  gatewayOrderId   String          @unique
+  gatewayPaymentId String?         @unique
+  method           String?
+  /// How success was verified: checkout_signature | webhook | simulator
+  verifiedVia      String?
+  failureReason    String?
+  verifiedAt       DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  refunds          Refund[]
+
+  @@index([orderId])
+  @@index([status, createdAt])
+}
+
+/// Deduplicates gateway webhooks (gateways retry deliveries).
+model WebhookEvent {
+  id          String          @id @default(cuid())
+  provider    PaymentProvider
+  eventId     String
+  eventType   String
+  receivedAt  DateTime        @default(now())
+  processedAt DateTime?
+  result      String?
+
+  @@unique([provider, eventId])
+}
+
+model Refund {
+  id              String       @id @default(cuid())
+  orderId         String
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  paymentId       String
+  payment         Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  amount          Decimal      @db.Decimal(10, 2)
+  status          RefundStatus @default(PENDING)
+  reason          String
+  gatewayRefundId String?      @unique
+  initiatedById   String?
+  initiatedBy     User?        @relation("RefundInitiatedBy", fields: [initiatedById], references: [id], onDelete: SetNull)
+  failureReason   String?
+  processedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([orderId, paymentId])
+  @@index([status])
+}
+
+model PickupToken {
+  id           String    @id @default(cuid())
+  orderId      String    @unique
+  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// Short human-readable code (also encoded in the QR). No payment data.
+  token        String    @unique
+  createdAt    DateTime  @default(now())
+  usedAt       DateTime?
+  verifiedById String?
+  verifiedBy   User?     @relation("PickupVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+}
+
+model OrderStatusHistory {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  changedById String?
+  changedBy   User?        @relation("StatusChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+  /// STUDENT | CANTEEN | STAFF | SYSTEM
+  actorRole   String
+  note        String?
+  createdAt   DateTime     @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([changedById, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications, realtime & audit
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId   String?
+  order     Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  type      String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// Append-only event feed consumed by the SSE endpoint (/api/events).
+/// Each row is addressed to a student and/or the canteen and/or staff;
+/// the endpoint only streams rows the signed-in user may see.
+model RealtimeEvent {
+  id            BigInt   @id @default(autoincrement())
+  type          String
+  orderId       String?
+  studentUserId String?
+  forCanteen    Boolean  @default(false)
+  forStaff      Boolean  @default(false)
+  payload       Json
+  createdAt     DateTime @default(now())
+
+  @@index([studentUserId, id])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole  String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([actorId])
+}
