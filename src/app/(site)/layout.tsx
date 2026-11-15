@@ -8,6 +8,7 @@ const FOOTER = [
   { href: '/support', label: 'Support' },
   { href: '/privacy', label: 'Privacy Policy' },
   { href: '/terms', label: 'Terms and Conditions' },
+  { href: '/credits', label: 'Photo credits' },
 ]
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {

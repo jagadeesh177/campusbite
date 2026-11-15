@@ -69,7 +69,7 @@ async function main() {
           slug: f.slug,
           description: f.description,
           price: f.price,
-          imageUrl: `/food/${f.slug}.svg`,
+          imageUrl: `/food/${f.slug}.jpg`,
           isVeg: f.isVeg,
           isPopular: f.isPopular ?? false,
           isAvailable: f.isAvailable ?? true,
