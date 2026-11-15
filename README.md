@@ -118,11 +118,41 @@ Created by the seed. **Never shown on login pages.** Delete or change them befor
 | Canteen (manager) | `kitchen@college.edu` | `Canteen@123` | orders, menu, settings |
 | Canteen (counter) | `counter@college.edu` | `Canteen@123` | orders only |
 
-**Try student activation:** go to `/activate` with `neha.rao@college.edu` or `karan.mehta@college.edu` (enrolled in the mock directory but not yet activated). The code appears in the dev mailbox at `/dev/mailbox`. `old.graduate@college.edu` is refused (not enrolled); Gmail addresses are refused.
+**Try student activation:** go to `/activate` with `neha.rao@college.edu` or `karan.mehta@college.edu` (enrolled in the mock directory but not yet activated). The activation link appears in the dev mailbox at `/dev/mailbox`. `old.graduate@college.edu` (not enrolled) and Gmail addresses get no link. Set `APP_URL` to the address you browse (e.g. `http://localhost:3000`) so emailed links point at the right host.
 
 **Testing two roles at once in one browser:** cookies are per host, so use `http://localhost:3000` for one role and `http://127.0.0.1:3000` (or `127.0.0.2`) for another.
 
 ---
+
+## Student activation (college-verified)
+
+Only students use self-service activation; staff and canteen accounts are created by an administrator.
+
+1. **`/activate`** — the student enters their college email and clicks **Verify My Email**.
+2. The server checks the email domain (`COLLEGE_EMAIL_DOMAINS`) and asks the **college integration provider** (`src/lib/college/`) whether it is an eligible, enrolled student. The page always shows the same "check your inbox" message, so it never reveals who is a student.
+3. If eligible, a 256-bit random token is emailed as a link (`/activate/confirm?token=…`). Only its **SHA-256 hash** is stored (`StudentAccessToken` table), it **expires after 30 minutes**, a newer request **invalidates** older links, and requests are **rate-limited** (3/hour per email, 20/hour per IP).
+4. **`/activate/confirm`** — **Create Your Password** with show/hide, strength meter and rules (min 8 characters, a letter and a number; checked again on the server).
+5. On submit the server re-checks eligibility, **consumes the token atomically** (single use, even under simultaneous submissions), creates/activates the account with the **STUDENT role assigned server-side**, links it to the college student ID, signs the student in and shows *"Your CampusBite account is ready!"*.
+
+**Forgot password** (`/forgot-password`, students only) uses the same single-use link mechanism and signs the student out of other devices.
+
+Every request and outcome is written to the audit log — never tokens or passwords; unknown emails are logged by domain only.
+
+> **Mock verification:** while `COLLEGE_PROVIDER=mock`, emails are checked against the fictional directory in `src/lib/college/mock-provider.ts` (plus optional `MOCK_EXTRA_STUDENTS`). The activation page says so. **CampusBite is not connected to any real college database** until a real adapter is configured — see `src/lib/college/README.md`.
+
+### Email delivery
+
+| `EMAIL_PROVIDER` | Use | Required variables |
+|---|---|---|
+| `dev-outbox` | Development: emails are stored and shown at `/dev/mailbox` (needs `DEV_TOOLS_ENABLED=true`) | — |
+| `smtp` | Any SMTP server, e.g. Gmail with an app password | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, optional `EMAIL_FROM` |
+| `resend` | Resend API | `RESEND_API_KEY`, `EMAIL_FROM` |
+
+`APP_URL` must be the public HTTPS address — activation links are built from it, never from request headers (prevents link-poisoning attacks).
+
+### Why not Supabase Auth?
+
+The brief suggested Supabase Auth but also said not to replace an existing auth system. CampusBite already has server-side authentication (bcrypt-hashed passwords, HTTP-only database sessions, server-enforced roles, three separate portals) covered by tests, and no Supabase project is configured. The activation workflow is therefore built on the existing system rather than running two auth systems side by side. Moving to Supabase Auth later would mean: creating a Supabase project (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, server-only `SUPABASE_SERVICE_ROLE_KEY`), replacing `src/lib/auth/session.ts` and `src/lib/auth/login.ts` with Supabase sessions, migrating password hashes, and mapping Supabase user IDs to `User` rows — the activation, college-verification and role logic can stay as they are.
 
 ## Tests
 
@@ -130,10 +160,10 @@ Created by the seed. **Never shown on login pages.** Delete or change them befor
 npm test
 ```
 
-54 tests. Integration tests run against `<your database>_test` (created/migrated automatically with `prisma migrate deploy`; tables are truncated per test — the runner refuses any database not ending in `_test`). Covered:
+68 tests. Integration tests run against `<your database>_test` (created/migrated automatically with `prisma migrate deploy`; tables are truncated per test — the runner refuses any database not ending in `_test`). Covered:
 
 - Authentication, portal/role locking, deactivated accounts, enrollment re-checks, rate limiting (incl. atomicity under concurrency)
-- Student eligibility & activation (college domain only, no enumeration, hashed codes, attempt lockout, weak passwords)
+- Student activation by email link: valid student, unknown email, invalid format, duplicate requests (old link invalidated + rate limit), delivery (dev outbox + SMTP adapter), expired link, invalid token, token reuse incl. simultaneous submissions, password creation, login after activation, password reset
 - Menu availability, cart calculations, server-side pricing (client prices ignored)
 - Order creation idempotency under 6 simultaneous submissions; 8 students ordering at once; kitchen capacity
 - Payment verification, amount/currency mismatch (fake confirmation), cross-student payment attempts, failed-then-retried payments

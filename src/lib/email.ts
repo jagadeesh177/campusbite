@@ -62,16 +62,38 @@ export async function sendEmail(msg: EmailMessage): Promise<void> {
   }
 }
 
-/** Branded activation-code email (plain text + simple HTML). */
-export function activationEmail(code: string): Pick<EmailMessage, 'subject' | 'text' | 'html'> {
-  return {
-    subject: `${code} is your CampusBite activation code`,
-    text: `Your CampusBite activation code is ${code}.\n\nIt expires in 10 minutes. If you didn't request this, you can ignore this email.`,
-    html: `<div style="font-family:Segoe UI,Arial,sans-serif;max-width:440px;margin:auto;padding:24px;color:#26332F">
-  <div style="font-size:20px;font-weight:700;color:#173F35">Campus<span style="color:#28A879">Bite</span></div>
-  <p style="margin:20px 0 8px">Your activation code is</p>
-  <div style="font-size:32px;font-weight:700;letter-spacing:8px;color:#173F35;background:#F8FAF7;border:1px solid #E5EBE6;border-radius:12px;padding:16px;text-align:center">${code}</div>
-  <p style="color:#66716B;font-size:14px;margin-top:16px">It expires in 10 minutes. If you didn't request this, you can ignore this email.</p>
-</div>`,
-  }
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+}
+
+/** Activation / password-reset email with a single-use link. Never contains a password. */
+export function studentLinkEmail(
+  purpose: 'ACTIVATION' | 'PASSWORD_RESET',
+  link: string,
+  ttlMinutes: number,
+): Pick<EmailMessage, 'subject' | 'text' | 'html'> {
+  const activation = purpose === 'ACTIVATION'
+  const subject = activation ? 'Activate Your CampusBite Account' : 'Reset your CampusBite password'
+  const intro = activation
+    ? ['Welcome to CampusBite!', 'Your college email has been verified successfully.', 'Click the button below to create your password and activate your account.']
+    : ['We received a request to reset your CampusBite password.', 'Click the button below to choose a new password.']
+  const button = activation ? 'Activate My Account' : 'Reset My Password'
+  const validity = `This link is valid for ${ttlMinutes} minutes and can only be used once.`
+  const ignore = activation
+    ? 'If you did not request this activation, you can ignore this email.'
+    : 'If you did not request a password reset, you can ignore this email — your password will not change.'
+
+  const text = [...intro, '', `${button}: ${link}`, '', validity, ignore].join('\n')
+  const safeLink = escapeHtml(link)
+  const html = `<div style="background:#F8FAF7;padding:24px 12px;font-family:Segoe UI,Arial,sans-serif;color:#26332F">
+  <div style="max-width:480px;margin:auto;background:#FFFFFF;border:1px solid #E5EBE6;border-radius:16px;padding:28px">
+    <div style="font-size:20px;font-weight:700;color:#173F35">Campus<span style="color:#28A879">Bite</span></div>
+    ${intro.map((p, i) => `<p style="margin:${i === 0 ? '20px' : '10px'} 0 0;${i === 0 ? 'font-size:18px;font-weight:700' : 'font-size:15px'}">${escapeHtml(p)}</p>`).join('\n    ')}
+    <p style="margin:24px 0"><a href="${safeLink}" style="display:inline-block;background:#173F35;color:#FFFFFF;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:12px">${button}</a></p>
+    <p style="font-size:14px;color:#66716B;margin:0">${escapeHtml(validity)}</p>
+    <p style="font-size:14px;color:#66716B;margin:8px 0 0">${escapeHtml(ignore)}</p>
+    <p style="font-size:12px;color:#66716B;margin:20px 0 0;word-break:break-all">Button not working? Paste this link into your browser:<br>${safeLink}</p>
+  </div>
+</div>`
+  return { subject, text, html }
 }

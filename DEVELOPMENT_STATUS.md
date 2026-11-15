@@ -11,7 +11,7 @@ Legend: ✅ done & verified · 🟡 done, needs external setup · ⛔ not built 
 | Public website | ✅ | Landing (hero, how it works, features, contact), about, support, privacy, terms |
 | Authentication & sessions | ✅ | 3 portals, DB sessions, bcrypt, rate limiting, forced password change for admin-created accounts |
 | Role-based access | ✅ | Enforced in layouts, pages, server actions, API routes and services |
-| Student activation | 🟡 | Works end to end with the dev mailbox. **Needs a real email provider** before students can activate in production |
+| Student activation | 🟡 | Email-link activation + password reset work end to end (verified in the browser with the dev mailbox; 14 tests). **Needs SMTP/Resend credentials** in production, and verification uses the **mock** college directory |
 | College integration | 🟡 | Provider interface + mock adapter + HTTP API template. **Needs the college's approved integration** |
 | Student portal | ✅ | Dashboard, menu, cart, checkout, pickup slots, payment, live tracking, QR, history, profile |
 | Canteen portal | ✅ | Order board, accept/reject/prepare/ready, pickup verification (QR camera + manual), menu, settings |
@@ -20,13 +20,13 @@ Legend: ✅ done & verified · 🟡 done, needs external setup · ⛔ not built 
 | Refunds | ✅ | Automatic on rejection/late payment; staff retry; double-refund protection |
 | Pickup tokens | ✅ | Single use, order-bound QR, concurrent-scan safe |
 | Realtime | ✅ | SSE + polling fallback, audience-filtered |
-| Tests | ✅ | 54 passing (unit + integration) |
+| Tests | ✅ | 68 passing (unit + integration) |
 | Deployment config | 🟡 | `vercel.json`, `vercel-build`, env template — not yet deployed |
 
 ## Requires external credentials or authorisation
 
 1. **Razorpay (UPI).** Create a Razorpay account (business KYC), enable UPI and auto-capture, set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `PAYMENT_PROVIDER=razorpay`, and configure the webhook (see README). Then run a test-mode payment, a failed payment and a refund end to end before going live. Until then the app uses the **development simulator**, which is labelled everywhere it appears and never described as a real payment.
-2. **Email delivery.** Only the development outbox (`EMAIL_PROVIDER=dev-outbox`, viewable at `/dev/mailbox`) exists. Activation codes need a transactional provider (SMTP, Resend, SES…). Add an adapter in `src/lib/email.ts`.
+2. **Email delivery.** SMTP (e.g. Gmail app password) and Resend adapters are implemented (`src/lib/email.ts`) and unit-tested with a mocked transport, but **no real credentials are configured yet**, so the live site cannot deliver activation links. Set `EMAIL_PROVIDER=smtp` + `SMTP_*` (or `resend` + `RESEND_API_KEY`) in Vercel, then send a test activation to a real inbox.
 3. **College integration.** Only the mock directory is active. To connect the real system, the college must approve one of: official API, OIDC/SAML SSO, read-only DB access, or CSV sync. See `src/lib/college/README.md`.
 
 ## Verified manually in the browser (production build)
@@ -42,7 +42,8 @@ Legend: ✅ done & verified · 🟡 done, needs external setup · ⛔ not built 
 
 ## Known gaps & limitations
 
-- ⛔ **Forgot password** is not implemented. Staff/canteen passwords can be reset by an admin; students currently have no self-service reset. Add a reset flow reusing the activation code mechanism.
+- ✅ **Forgot password** for students via single-use email link (`/forgot-password`). Staff/canteen passwords are reset by an administrator.
+- **Supabase Auth** was not adopted: the existing server-side auth is kept (see README → "Why not Supabase Auth?").
 - **QR camera scanning** uses the browser `BarcodeDetector` API (Chrome/Edge on Android and desktop). Safari/iOS doesn't support it, so the pickup screen falls back to typing the 6-character code.
 - **Food images** are generated illustrations. Upload real photos from Canteen → Menu → Edit (stored in Postgres, max 1.5 MB, JPEG/PNG/WebP verified by file content).
 - **CSP** allows `'unsafe-inline'` scripts (Next.js inline bootstrap). Moving to nonce-based CSP is a hardening follow-up.

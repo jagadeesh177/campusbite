@@ -9,7 +9,7 @@ export default function SupportPage() {
       <section>
         <h2>I can&apos;t activate my account</h2>
         <p>
-          Use your official college email address. Activation codes are only sent to students who are currently
+          Use your official college email address. Activation links are only sent to students who are currently
           enrolled according to college records. If you believe your enrollment is shown incorrectly, contact the
           college administration office.
         </p>

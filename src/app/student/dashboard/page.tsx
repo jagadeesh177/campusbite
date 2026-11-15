@@ -30,9 +30,9 @@ function greeting(tz: string) {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
 }
 
-export default async function StudentDashboard({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
+export default async function StudentDashboard({ searchParams }: { searchParams: Promise<{ activated?: string; passwordReset?: string }> }) {
   const user = await requirePortalUser('STUDENT')
-  const { welcome } = await searchParams
+  const { activated, passwordReset } = await searchParams
   const [active, menu, recommendedRaw, settings, notifications] = await Promise.all([
     getActiveOrders(user.id),
     getMenu(),
@@ -50,7 +50,8 @@ export default async function StudentDashboard({ searchParams }: { searchParams:
 
   return (
     <div className="space-y-8">
-      {welcome && <Notice tone="success" title="Your account is active">Welcome to CampusBite — you can start ordering right away.</Notice>}
+      {activated && <Notice tone="success" title="Your CampusBite account is ready!">Welcome aboard — you can start ordering right away.</Notice>}
+      {passwordReset && <Notice tone="success" title="Your password has been updated">You&apos;ve been signed out on other devices.</Notice>}
 
       <section className="relative overflow-hidden rounded-[1.5rem] bg-primary p-6 text-white sm:p-8">
         <div className="pointer-events-none absolute -top-20 -right-16 h-64 w-64 rounded-full bg-accent/30 blur-3xl" aria-hidden />

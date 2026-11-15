@@ -18,10 +18,13 @@ export default async function StudentLoginPage() {
       }}
     >
       <LoginForm portal="STUDENT" emailPlaceholder="you@college.edu" />
+      <div className="mt-3 text-right">
+        <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">Forgot password?</Link>
+      </div>
       <div className="mt-8 rounded-2xl border border-line bg-surface p-4 text-sm">
         <div className="font-semibold text-ink">First time here?</div>
         <p className="mt-1 text-muted">
-          Activate your account with your college email — we&apos;ll confirm your enrollment with college records.
+          Activate your account with your college email — we&apos;ll check college records and email you a secure link.
         </p>
         <Link href="/activate" className="mt-3 inline-block font-semibold text-primary hover:text-primary-hover hover:underline">
           Activate my account →

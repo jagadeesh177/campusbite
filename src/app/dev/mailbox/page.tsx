@@ -32,7 +32,15 @@ export default async function DevMailboxPage() {
                   <span className="text-subtle">{formatDateTime(m.createdAt, env.timezone)}</span>
                 </div>
                 <div className="mt-0.5 text-sm text-muted">To: {m.to}</div>
-                <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-bg p-3 font-sans text-sm text-ink">{m.body}</pre>
+                <pre className="mt-3 whitespace-pre-wrap break-all rounded-xl bg-bg p-3 font-sans text-sm text-ink">
+                  {m.body.split(/(https?:\/\/\S+)/g).map((part, i) =>
+                    /^https?:\/\//.test(part) ? (
+                      <a key={i} href={part} className="font-semibold text-primary underline">{part}</a>
+                    ) : (
+                      part
+                    ),
+                  )}
+                </pre>
               </li>
             ))}
           </ul>

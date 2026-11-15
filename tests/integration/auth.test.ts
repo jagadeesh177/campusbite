@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { authenticate } from '@/lib/auth/login'
-import { completeStudentActivation, startStudentActivation } from '@/lib/auth/activation'
 import { rateLimit } from '@/lib/auth/rate-limit'
 import { AppError } from '@/lib/errors'
 import { createCanteen, createStaff, createStudent, prisma, resetDb, TEST_PASSWORD } from '../helpers'
@@ -9,11 +8,6 @@ beforeEach(resetDb)
 
 async function expectAppError(p: Promise<unknown>, code: AppError['code']) {
   await expect(p).rejects.toSatisfy((e: unknown) => e instanceof AppError && e.code === code)
-}
-
-async function latestCode(email: string) {
-  const mail = await prisma.devMailMessage.findFirstOrThrow({ where: { to: email }, orderBy: { createdAt: 'desc' } })
-  return /(\d{6})/.exec(mail.body)![1]
 }
 
 describe('login', () => {
@@ -54,61 +48,5 @@ describe('login', () => {
   it('rate limiter is atomic under concurrency', async () => {
     const results = await Promise.all(Array.from({ length: 20 }, () => rateLimit('t:concurrent', 5, 60)))
     expect(results.filter((r) => r.ok)).toHaveLength(5)
-  })
-})
-
-describe('student activation', () => {
-  it('activates an enrolled student via emailed code', async () => {
-    await startStudentActivation('neha.rao@college.edu', null)
-    const code = await latestCode('neha.rao@college.edu')
-    const { userId } = await completeStudentActivation({
-      email: 'neha.rao@college.edu',
-      code,
-      password: 'MyPassw0rd',
-      confirmPassword: 'MyPassw0rd',
-    })
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, include: { studentProfile: true } })
-    expect(user.status).toBe('ACTIVE')
-    expect(user.role).toBe('STUDENT')
-    expect(user.studentProfile?.externalStudentId).toBe('24CS031')
-    expect((await authenticate('STUDENT', { email: 'neha.rao@college.edu', password: 'MyPassw0rd' }, null)).userId).toBe(userId)
-  })
-
-  it('never lets a personal email register as a student', async () => {
-    await expectAppError(startStudentActivation('someone@gmail.com', null), 'VALIDATION')
-    expect(await prisma.devMailMessage.count()).toBe(0)
-  })
-
-  it('sends nothing to non-enrolled or unknown college emails (no enumeration)', async () => {
-    await startStudentActivation('old.graduate@college.edu', null)
-    await startStudentActivation('not.a.student@college.edu', null)
-    expect(await prisma.devMailMessage.count()).toBe(0)
-  })
-
-  it('locks a code after too many wrong guesses and never stores it in plain text', async () => {
-    await startStudentActivation('karan.mehta@college.edu', null)
-    const code = await latestCode('karan.mehta@college.edu')
-    const stored = await prisma.verificationCode.findFirstOrThrow()
-    expect(stored.codeHash).not.toContain(code)
-    const wrong = code === '000000' ? '111111' : '000000'
-    for (let i = 0; i < 5; i++) {
-      await expectAppError(
-        completeStudentActivation({ email: 'karan.mehta@college.edu', code: wrong, password: 'MyPassw0rd', confirmPassword: 'MyPassw0rd' }),
-        'VALIDATION',
-      )
-    }
-    await expectAppError(
-      completeStudentActivation({ email: 'karan.mehta@college.edu', code, password: 'MyPassw0rd', confirmPassword: 'MyPassw0rd' }),
-      'RATE_LIMITED',
-    )
-  })
-
-  it('rejects weak passwords', async () => {
-    await startStudentActivation('neha.rao@college.edu', null)
-    const code = await latestCode('neha.rao@college.edu')
-    await expectAppError(
-      completeStudentActivation({ email: 'neha.rao@college.edu', code, password: 'password', confirmPassword: 'password' }),
-      'VALIDATION',
-    )
   })
 })

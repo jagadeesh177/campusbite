@@ -162,6 +162,32 @@ model Session {
   @@index([expiresAt])
 }
 
+/// Single-use links for student account activation and password reset.
+/// Only the SHA-256 hash of the token is stored; the raw token exists only in
+/// the emailed link.
+model StudentAccessToken {
+  id                String             @id @default(cuid())
+  tokenHash         String             @unique
+  purpose           StudentTokenPurpose
+  /// Normalised college email the link was issued for
+  email             String
+  /// College student ID confirmed by the integration provider at request time
+  externalStudentId String
+  expiresAt         DateTime
+  usedAt            DateTime?
+  /// Set when a newer link replaces this one
+  invalidatedAt     DateTime?
+  createdAt         DateTime           @default(now())
+
+  @@index([email, purpose])
+}
+
+enum StudentTokenPurpose {
+  ACTIVATION
+  PASSWORD_RESET
+}
+
+/// LEGACY: 6-digit code activation (replaced by StudentAccessToken). Unused.
 model VerificationCode {
   id         String              @id @default(cuid())
   email      String
