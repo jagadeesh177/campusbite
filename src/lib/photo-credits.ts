@@ -69,11 +69,11 @@ export const PHOTO_CREDITS: PhotoCredit[] = [
   },
   {
     "slug": "chicken-biryani",
-    "title": "Chicken biryani 02-06-2015 (India).jpg",
-    "author": "Shivani shipra",
+    "title": "Chicken DumBiryani.JPG",
+    "author": "Vinay Sah",
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Chicken_biryani_02-06-2015_(India).jpg"
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_DumBiryani.JPG"
   },
   {
     "slug": "samosa",

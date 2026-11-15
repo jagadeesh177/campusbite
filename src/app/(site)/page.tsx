@@ -92,7 +92,7 @@ export default async function LandingPage() {
           </div>
 
           {/* Product shot built from real UI components */}
-          <div className="relative mx-auto w-full max-w-md">
+          <div className="relative mx-auto w-full max-w-md sm:py-11">
             <div className="rounded-[1.75rem] border border-line bg-surface p-5 shadow-lift">
               <div className="flex items-center justify-between">
                 <div>
@@ -106,11 +106,11 @@ export default async function LandingPage() {
               </div>
               <div className="mt-5 space-y-3 rounded-2xl bg-bg p-3">
                 {[
-                  { name: 'Masala Dosa', img: '/food/masala-dosa.svg', qty: 1, price: 4000 },
-                  { name: 'Coffee', img: '/food/coffee.svg', qty: 2, price: 4000 },
+                  { name: 'Masala Dosa', img: '/food/masala-dosa.jpg', qty: 1, price: 4000 },
+                  { name: 'Coffee', img: '/food/coffee.jpg', qty: 2, price: 4000 },
                 ].map((i) => (
                   <div key={i.name} className="flex items-center gap-3">
-                    <FoodImage src={i.img} alt="" className="h-11 w-11 rounded-xl" />
+                    <FoodImage src={i.img} alt="" className="h-11 w-11 shrink-0 rounded-xl" />
                     <div className="flex-1 text-sm font-medium">{i.name} <span className="text-muted">× {i.qty}</span></div>
                     <div className="text-sm font-semibold tabular-nums">{formatINR(i.price)}</div>
                   </div>
@@ -127,14 +127,13 @@ export default async function LandingPage() {
                 </div>
               </div>
             </div>
-            <div className="absolute -top-6 -left-4 hidden rounded-2xl border border-line bg-surface px-4 py-3 shadow-lift sm:block">
-              <div className="flex items-center gap-2 text-sm font-semibold text-success">
-                <ShieldCheck className="h-4 w-4" /> UPI payment verified
-              </div>
+            {/* Floating chips live in the reserved space above/below the card so they never cover content */}
+            <div className="absolute top-0 left-6 hidden items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm font-semibold text-success shadow-lift sm:inline-flex">
+              <ShieldCheck className="h-4 w-4" /> UPI payment verified
             </div>
-            <div className="absolute -right-3 bottom-28 hidden rounded-2xl border border-line bg-surface px-4 py-3 shadow-lift sm:block">
-              <div className="text-xs text-subtle">Queue skipped</div>
-              <div className="font-display text-lg font-bold text-primary">~15 min saved</div>
+            <div className="absolute right-6 bottom-0 hidden items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm shadow-lift sm:inline-flex">
+              <span className="text-subtle">Queue skipped</span>
+              <span className="font-display font-bold text-primary">~15 min saved</span>
             </div>
           </div>
         </div>
