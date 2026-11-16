@@ -1,18 +1,15 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { z } from 'zod'
 import type { Role } from '@prisma/client'
-import { db } from '@/lib/db'
 import { audit } from '@/lib/audit'
 import { toActionError } from '@/lib/errors'
 import { getClientInfo } from '@/lib/request'
 import { authenticate } from '@/lib/auth/login'
-import { changeSupabasePassword, completeUserLink, registerUser, requestUserPasswordReset } from '@/lib/auth/user-auth'
-import { createSession, destroySession, getSessionUser, revokeAllSessions } from '@/lib/auth/session'
-import { hashPassword, passwordSchema, verifyPassword } from '@/lib/auth/password'
+import { completeUserLink, registerUser, requestUserPasswordReset } from '@/lib/auth/user-auth'
+import { changeOwnPassword } from '@/lib/auth/change-password'
+import { createSession, destroySession, getSessionUser } from '@/lib/auth/session'
 import { PORTAL_HOME } from '@/lib/auth/guards'
-import { enforceRateLimit } from '@/lib/auth/rate-limit'
 
 export type FormState =
   | {
@@ -103,45 +100,22 @@ export async function setPasswordWithLinkAction(_prev: FormState, formData: Form
   redirect(result.purpose === 'ACTIVATION' ? '/user/dashboard?activated=1' : '/user/dashboard?passwordReset=1')
 }
 
-const changePasswordSchema = z
-  .object({
-    currentPassword: z.string().min(1, 'Enter your current password'),
-    newPassword: passwordSchema,
-    confirmPassword: z.string(),
-  })
-  .refine((v) => v.newPassword === v.confirmPassword, { message: 'Passwords do not match', path: ['confirmPassword'] })
-  .refine((v) => v.newPassword !== v.currentPassword, { message: 'Choose a different password', path: ['newPassword'] })
-
 export async function changePasswordAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await getSessionUser()
   if (!user) redirect('/login')
-  const parsed = changePasswordSchema.safeParse(Object.fromEntries(formData))
-  if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors }
-
+  let r
   try {
-    await enforceRateLimit(`change-password:${user.id}`, 5, 15 * 60)
+    r = await changeOwnPassword(
+      { userId: user.id, sessionId: user.sessionId },
+      {
+        currentPassword: String(formData.get('currentPassword') ?? ''),
+        newPassword: String(formData.get('newPassword') ?? ''),
+        confirmPassword: String(formData.get('confirmPassword') ?? ''),
+      },
+    )
   } catch (e) {
     return toActionError(e)
   }
-  const row = await db.user.findUniqueOrThrow({ where: { id: user.id } })
-  if (row.supabaseUserId) {
-    // Registered users keep their password in Supabase Auth
-    try {
-      const r = await changeSupabasePassword(row.email, parsed.data.currentPassword, parsed.data.newPassword)
-      if (r === 'wrong_current') return { fieldErrors: { currentPassword: ['Current password is incorrect'] } }
-    } catch (e) {
-      return toActionError(e)
-    }
-  } else {
-    if (!(await verifyPassword(parsed.data.currentPassword, row.passwordHash))) {
-      return { fieldErrors: { currentPassword: ['Current password is incorrect'] } }
-    }
-    await db.user.update({
-      where: { id: user.id },
-      data: { passwordHash: await hashPassword(parsed.data.newPassword), mustChangePassword: false },
-    })
-  }
-  await revokeAllSessions(user.id, user.sessionId)
-  await audit({ actor: { userId: user.id, role: user.role }, action: 'auth.password_changed', entityType: 'User', entityId: user.id })
+  if (!r.ok) return { error: r.error, fieldErrors: r.fieldErrors }
   redirect(PORTAL_HOME[user.role])
 }

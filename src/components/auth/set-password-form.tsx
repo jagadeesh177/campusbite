@@ -9,7 +9,7 @@ import { SubmitButton } from '@/components/ui/client'
 import { cn } from '@/lib/cn'
 
 // Mirrors the server rule in src/lib/auth/password.ts (the server re-validates)
-const RULES = [
+export const PASSWORD_RULES = [
   { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
   { label: 'At least one letter', test: (p: string) => /[A-Za-z]/.test(p) },
   { label: 'At least one number', test: (p: string) => /\d/.test(p) },
@@ -17,7 +17,7 @@ const RULES = [
 
 function strength(p: string): { score: 0 | 1 | 2 | 3 | 4; label: string } {
   if (!p) return { score: 0, label: '' }
-  let s = RULES.filter((r) => r.test(p)).length
+  let s = PASSWORD_RULES.filter((r) => r.test(p)).length
   if (p.length >= 12 && /[^A-Za-z0-9]/.test(p)) s++
   const score = Math.min(4, s) as 0 | 1 | 2 | 3 | 4
   return { score, label: ['Too weak', 'Weak', 'Okay', 'Good', 'Strong'][score] }
@@ -40,7 +40,7 @@ export function SetPasswordForm({
   const [confirm, setConfirm] = useState('')
   const [show, setShow] = useState(false)
 
-  const meetsRules = RULES.every((r) => r.test(password))
+  const meetsRules = PASSWORD_RULES.every((r) => r.test(password))
   const matches = confirm.length > 0 && confirm === password
   const s = strength(password)
   const barColor = ['bg-line', 'bg-danger', 'bg-warning', 'bg-accent', 'bg-success'][s.score]
@@ -99,7 +99,7 @@ export function SetPasswordForm({
         </div>
         {s.label && <div className="mt-1.5 text-xs font-medium text-subtle">Strength: {s.label}</div>}
         <ul id="password-rules" className="mt-2 space-y-1">
-          {RULES.map((r) => {
+          {PASSWORD_RULES.map((r) => {
             const ok = r.test(password)
             return (
               <li key={r.label} className={cn('flex items-center gap-2 text-sm', ok ? 'text-success' : 'text-muted')}>
