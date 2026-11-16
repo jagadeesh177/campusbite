@@ -5,7 +5,7 @@ import { AppError, toActionError, type ActionResult } from '@/lib/errors'
 import { requireActor } from '@/lib/auth/guards'
 import { changeOrderStatus } from '@/lib/orders/transitions'
 import { completePickup, lookupPickup, type PickupPreview } from '@/lib/orders/pickup'
-import { saveCategory, saveFoodItem, setItemAvailability, updateKitchenSettings } from '@/lib/menu'
+import { saveCategory, saveFoodItem, setItemAvailability, updateKitchenSettings, setAcceptingOrders } from '@/lib/menu'
 import type { OrderStatusValue } from '@/lib/order-status'
 
 // ---- Orders (canteen operators with ORDERS permission) ---------------------
@@ -126,5 +126,16 @@ export async function updateKitchenSettingsAction(_prev: ActionResult | undefine
     return { ok: true, data: undefined, message: 'Kitchen settings saved.' }
   } catch (e) {
     return withFieldErrors(e)
+  }
+}
+
+export async function setAcceptingOrdersAction(accepting: boolean): Promise<ActionResult> {
+  try {
+    const actor = await requireActor(['CANTEEN', 'STAFF'])
+    await setAcceptingOrders(actor, accepting)
+    revalidatePath('/', 'layout')
+    return { ok: true, data: undefined, message: accepting ? 'Ordering is open again.' : 'New orders paused.' }
+  } catch (e) {
+    return toActionError(e)
   }
 }

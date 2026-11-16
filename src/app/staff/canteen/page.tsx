@@ -10,6 +10,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ButtonLink } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/misc'
+import { SectionTabs, accountTabs } from '@/components/staff/section-tabs'
 import { AccountsManager } from '@/components/staff/accounts-manager'
 
 export const metadata: Metadata = { title: 'Canteen management' }
@@ -31,7 +32,8 @@ export default async function CanteenManagementPage() {
 
   return (
     <>
-      <PageHeader title="Canteen management" description="Operator accounts, permissions, activity and operating hours." />
+      <PageHeader title="Accounts" description="Canteen operator accounts and what each one can do." />
+      <SectionTabs tabs={accountTabs(user.permissions)} active="/staff/canteen" />
       <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr] xl:items-start">
         <AccountsManager
           kind="CANTEEN"

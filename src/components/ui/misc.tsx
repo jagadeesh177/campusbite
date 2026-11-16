@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import type { ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, Info, XCircle, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -115,7 +116,6 @@ export function StatCard({
   )
 }
 
-/* eslint-disable @next/next/no-img-element */
 export function FoodImage({
   src,
   alt,
@@ -129,9 +129,10 @@ export function FoodImage({
   eager?: boolean
 }) {
   return (
-    <div className={cn('overflow-hidden bg-accent-soft', className)}>
+    <div className={cn('relative overflow-hidden bg-accent-soft', className)}>
       {src ? (
-        <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" className="h-full w-full object-cover" />
+        // Resized + WebP via the Next.js image optimiser (photos are ~200 KB originals)
+        <Image src={src} alt={alt} fill sizes="(max-width: 640px) 100vw, 400px" priority={eager} className="object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-3xl" aria-hidden>
           🍽️

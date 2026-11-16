@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 // Development seed. Wipes and recreates demo data. Refuses to run in production.
 //   npx prisma db seed
 
@@ -36,7 +35,7 @@ async function main() {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE "RealtimeEvent", "Notification", "AuditLog", "OrderStatusHistory", "PickupToken",
       "Refund", "Payment", "WebhookEvent", "OrderItem", "Order", "FoodItem", "FoodImage", "FoodCategory",
-      "Session", "VerificationCode", "DevMailMessage", "RateLimitBucket", "UserProfile",
+      "Session", "RateLimitBucket", "UserProfile",
       "StaffProfile", "CanteenProfile", "User", "KitchenSettings" RESTART IDENTITY CASCADE`)
 
   await prisma.kitchenSettings.create({

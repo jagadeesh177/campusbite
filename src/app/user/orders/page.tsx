@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import QRCode from 'qrcode'
-import { ClipboardList } from 'lucide-react'
+import { ClipboardList, History } from 'lucide-react'
 import { requirePortalUser } from '@/lib/auth/guards'
 import { env } from '@/lib/env'
-import { getActiveOrders } from '@/lib/queries/user'
+import { getActiveOrders, getOrderHistory } from '@/lib/queries/user'
 import { formatINR } from '@/lib/money'
 import { formatDateTime } from '@/lib/time'
 import { buildPickupQrPayload } from '@/lib/orders/codes'
@@ -14,12 +14,14 @@ import { OrderStatusBadge, PaymentStatusBadge } from '@/components/ui/badge'
 import { EmptyState, PageHeader } from '@/components/ui/misc'
 import { OrderProgress } from '@/components/ui/order-progress'
 
-export const metadata: Metadata = { title: 'My orders' }
+export const metadata: Metadata = { title: 'My Orders' }
 export const dynamic = 'force-dynamic'
 
-export default async function MyOrdersPage() {
+/** One page for all orders: in progress (with pickup code) on top, past orders below. */
+export default async function MyOrdersPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const user = await requirePortalUser('USER')
-  const orders = await getActiveOrders(user.id)
+  const page = Math.max(1, Number((await searchParams).page) || 1)
+  const [orders, past] = await Promise.all([getActiveOrders(user.id), getOrderHistory(user.id, page)])
   const qrs = await Promise.all(
     orders.map((o) =>
       o.pickupToken
@@ -30,18 +32,14 @@ export default async function MyOrdersPage() {
 
   return (
     <>
-      <PageHeader
-        title="My orders"
-        description="Orders in progress. Updates arrive live — no need to refresh."
-        action={<ButtonLink href="/user/history" variant="secondary">Order history</ButtonLink>}
-      />
-      {orders.length === 0 ? (
+      <PageHeader title="My Orders" description="This page updates by itself — no need to refresh." />
+      {page === 1 && (orders.length === 0 ? (
         <Card>
           <EmptyState
             icon={ClipboardList}
-            title="No active orders"
+            title="No orders in progress"
             description="When you place an order, you can track it here."
-            action={<ButtonLink href="/user/menu">Order food</ButtonLink>}
+            action={<ButtonLink href="/user/dashboard">Order food</ButtonLink>}
           />
         </Card>
       ) : (
@@ -85,7 +83,43 @@ export default async function MyOrdersPage() {
             </Card>
           ))}
         </div>
-      )}
+      ))}
+
+      <section className="mt-8" aria-label="Past orders">
+        <h2 className="mb-3 text-lg font-bold text-ink">Past orders</h2>
+        <Card>
+          {past.orders.length === 0 ? (
+            <EmptyState icon={History} title="No past orders yet" />
+          ) : (
+            <ul className="divide-y divide-line">
+              {past.orders.map((o) => (
+                <li key={o.id}>
+                  <Link href={`/user/orders/${o.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-4 hover:bg-bg sm:px-6">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold">{o.orderNumber}</span>
+                        <OrderStatusBadge status={o.status} />
+                      </div>
+                      <div className="mt-0.5 truncate text-sm text-muted">{o.items.map((i) => `${i.name} × ${i.quantity}`).join(', ')}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold tabular-nums">{formatINR(o.totalPaise)}</div>
+                      <div className="text-xs text-subtle">{formatDateTime(o.createdAt, env.timezone)}</div>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        {past.pages > 1 && (
+          <nav className="mt-4 flex items-center justify-center gap-3" aria-label="Pagination">
+            {page > 1 && <ButtonLink href={`?page=${page - 1}`} variant="secondary" size="sm">Previous</ButtonLink>}
+            <span className="text-sm text-muted">Page {page} of {past.pages}</span>
+            {page < past.pages && <ButtonLink href={`?page=${page + 1}`} variant="secondary" size="sm">Next</ButtonLink>}
+          </nav>
+        )}
+      </section>
     </>
   )
 }

@@ -12,14 +12,14 @@ Legend: ✅ done & verified · 🟡 done, needs external setup · ⛔ not built 
 | Authentication & sessions | ✅ | 3 portals, DB sessions, bcrypt, rate limiting, forced password change for admin-created accounts |
 | Role-based access | ✅ | Enforced in layouts, pages, server actions, API routes and services |
 | User registration | ✅ | Any personal email via **Supabase Auth** (pending `USER` account → activation link → create password → dashboard), resend with rate limiting, password reset; 20 tests against a Supabase fake. **Real delivery verified** on 16 Nov 2026 through Supabase custom SMTP (Gmail, sender *CampusBite*): the *Activate Your CampusBite Account* email reached a Gmail inbox and its link opened *Create Your Password* on the live site; a second activation was sent to another Gmail account. Gmail SMTP allows ~500 emails/day — switch Supabase SMTP to Resend with a verified domain for larger volume |
-| User portal | ✅ | Dashboard, menu, cart, checkout, pickup slots, payment, live tracking, QR, history, profile, permanent account deletion |
-| Canteen portal | ✅ | Order board, accept/reject/prepare/ready, pickup verification (QR camera + manual), menu, settings |
-| Staff portal | ✅ | Dashboard, users, canteen accounts, staff accounts, food, payments/refunds, reports + CSV, audit log, settings |
+| User portal | ✅ | Home (menu + search + current order), one-page cart & checkout with pickup slots, payment, live tracking with QR/code, My Orders (current + past), profile, change password, permanent account deletion |
+| Canteen portal | ✅ | Orders board (New / Preparing / Ready / Completed) with pause/resume switch, accept/reject/prepare/ready, pickup verification (QR camera + manual), history, menu |
+| Staff portal | ✅ | Dashboard (today), all orders, users, menu, payments/refunds, reports + CSV, accounts (canteen + staff), settings + activity log |
 | Payments | 🟡 | Razorpay integration written (orders, checkout verification, webhooks, refunds) but **not yet run against real Razorpay** — needs merchant keys. Simulator verified |
 | Refunds | ✅ | Automatic on rejection/late payment; staff retry; double-refund protection |
 | Pickup tokens | ✅ | Single use, order-bound QR, concurrent-scan safe |
 | Realtime | ✅ | SSE + polling fallback, audience-filtered |
-| Tests | ✅ | 72 passing (unit + integration) |
+| Tests | ✅ | 73 passing (unit + integration) |
 | Deployment config | 🟡 | `vercel.json`, `vercel-build`, env template — not yet deployed |
 
 ## Requires external credentials or authorisation
@@ -37,6 +37,10 @@ Legend: ✅ done & verified · 🟡 done, needs external setup · ⛔ not built 
 - Kitchen settings change (extended hours) takes effect immediately for users
 - Unauthenticated access: portals redirect, `/api/events`, `/api/staff/export`, cron return 401; unsigned webhook returns 400; security headers present
 - Mobile (375px): user dashboard and menu, no horizontal overflow; canteen board at phone and tablet widths
+
+## Simplification (16 Nov 2026)
+
+See [docs/AUDIT.md](docs/AUDIT.md). Verified in the browser on a local build: a full order on a phone-sized screen (browse → cart → test payment → confirmed → canteen accepts → preparing → ready + notification → pickup code verified → collected), canteen history, every staff page, and wrong-role access blocked.
 
 ## Known gaps & limitations
 

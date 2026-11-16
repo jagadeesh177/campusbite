@@ -175,7 +175,7 @@ function OrderCard({
         <div className="min-w-0">
           <div className="font-mono text-[13px] font-bold whitespace-nowrap text-ink">{o.orderNumber}</div>
           <div className="truncate text-[15px] font-semibold text-ink">{o.userName}</div>
-          <div className="text-xs text-subtle">{o.studentId ?? '—'}</div>
+          {o.studentId && <div className="text-xs text-subtle">{o.studentId}</div>}
         </div>
         <div className="flex flex-col items-end gap-1">
           {isNew ? <span className="rounded-full bg-info px-2 py-0.5 text-[11px] font-bold text-white">NEW</span> : <OrderStatusBadge status={o.status} />}

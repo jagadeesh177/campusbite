@@ -22,7 +22,7 @@ export function SimulatorPanel({ paymentId, orderId, amountPaise }: { paymentId:
     setBusy(null)
     if (!r.ok) return setMessage({ tone: 'danger', text: r.error })
     if (r.data.outcome === 'failed') {
-      return setMessage({ tone: 'warning', text: 'Simulated payment failed. Your order is still waiting — you can try again.' })
+      return setMessage({ tone: 'warning', text: 'The test payment failed. Your order is still waiting — you can try again.' })
     }
     router.push(`/user/orders/${orderId}?paid=1`)
   }
@@ -31,22 +31,22 @@ export function SimulatorPanel({ paymentId, orderId, amountPaise }: { paymentId:
     <div>
       <div className="rounded-2xl border-2 border-dashed border-warning/70 bg-warning-soft p-5">
         <div className="flex items-center gap-2 font-display text-lg font-bold text-warning-ink">
-          <FlaskConical className="h-5 w-5" /> Development payment simulator
+          <FlaskConical className="h-5 w-5" /> Test payment
         </div>
         <p className="mt-1 text-sm text-warning-ink">
-          This is <strong>not a real payment</strong> and no money moves. It sends a signed test callback through the
-          same server-side verification a real UPI payment uses. Disable it in production.
+          CampusBite is in test mode, so <strong>no real money is charged</strong>. Choose an outcome to continue —
+          your order is still checked by the server exactly like a real UPI payment.
         </p>
       </div>
       {message && <Notice tone={message.tone} className="mt-4">{message.text}</Notice>}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <Button size="xl" onClick={() => run('success')} disabled={!!busy}>
           {busy === 'success' ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5 text-accent" />}
-          Simulate success · {formatINR(amountPaise)}
+          Pay {formatINR(amountPaise)} (test)
         </Button>
         <Button size="xl" variant="secondary" onClick={() => run('failure')} disabled={!!busy}>
           {busy === 'failure' ? <Loader2 className="h-5 w-5 animate-spin" /> : <XCircle className="h-5 w-5 text-danger" />}
-          Simulate failure
+          Try a failed payment
         </Button>
       </div>
     </div>

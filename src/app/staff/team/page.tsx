@@ -5,6 +5,7 @@ import { requirePortalUser } from '@/lib/auth/guards'
 import { STAFF_PERMISSIONS } from '@/lib/auth/permissions'
 import { formatDateTime } from '@/lib/time'
 import { PageHeader } from '@/components/ui/misc'
+import { SectionTabs, accountTabs } from '@/components/staff/section-tabs'
 import { AccountsManager } from '@/components/staff/accounts-manager'
 
 export const metadata: Metadata = { title: 'Staff accounts' }
@@ -15,7 +16,8 @@ export default async function TeamPage() {
   const staff = await db.user.findMany({ where: { role: 'STAFF' }, include: { staffProfile: true }, orderBy: { name: 'asc' } })
   return (
     <>
-      <PageHeader title="Staff accounts" description="College staff who can access this portal. You can’t edit your own permissions." />
+      <PageHeader title="Accounts" description="Who can use the staff portal. You can’t edit your own permissions." />
+      <SectionTabs tabs={accountTabs(user.permissions)} active="/staff/team" />
       <AccountsManager
         kind="STAFF"
         labelName="Job title"

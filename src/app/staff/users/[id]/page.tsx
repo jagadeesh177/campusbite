@@ -43,7 +43,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
           <CardBody>
             <dl className="space-y-3 text-sm">
               {[
-                ['Student ID', p?.externalStudentId ?? '—'],
+                ...(p?.externalStudentId ? [['Student ID', p.externalStudentId]] : []),
                 ['Mobile', p?.phone ?? '—'],
                 ['Department', p?.department ?? '—'],
                 ['Account type', p?.integrationSource === 'supabase' ? 'Self-registered (Supabase)' : 'Demo / legacy'],

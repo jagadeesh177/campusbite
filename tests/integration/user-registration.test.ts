@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/auth/supabase', async () => (await import('../fake-supabase')).fakeSupabaseModule)
 
 const { fake } = await import('../fake-supabase')
-const { completeUserLink, registerUser, requestUserPasswordReset } = await import('@/lib/auth/user-auth')
+const { changeSupabasePassword, completeUserLink, registerUser, requestUserPasswordReset } = await import('@/lib/auth/user-auth')
 const { authenticate } = await import('@/lib/auth/login')
 const { AppError } = await import('@/lib/errors')
 const { createStaff, createUser, prisma, resetDb, TEST_PASSWORD } = await import('../helpers')
@@ -204,5 +204,16 @@ describe('password reset', () => {
     await requestUserPasswordReset('nobody@gmail.com', null)
     expect(fake.sent).toHaveLength(0)
     await expectAppError(requestUserPasswordReset('nobody@gmail.com', null), 'RATE_LIMITED')
+  })
+})
+
+describe('change password while signed in (Supabase users)', () => {
+  it('checks the current password and switches to the new one', async () => {
+    await reg('asha@gmail.com')
+    await complete(fake.lastTo('asha@gmail.com')!.tokenHash)
+    expect(await changeSupabasePassword('asha@gmail.com', 'Wrong1234', 'Newer2026x')).toBe('wrong_current')
+    expect(await changeSupabasePassword('asha@gmail.com', PW, 'Newer2026x')).toBe('ok')
+    await expectAppError(authenticate('USER', { email: 'asha@gmail.com', password: PW }, null), 'UNAUTHORIZED')
+    expect((await authenticate('USER', { email: 'asha@gmail.com', password: 'Newer2026x' }, null)).role).toBe('USER')
   })
 })

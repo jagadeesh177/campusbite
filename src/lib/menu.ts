@@ -203,3 +203,16 @@ export async function updateKitchenSettings(actor: Actor, input: z.input<typeof 
   await publishEvent(db, { type: 'KITCHEN_UPDATED', forCanteen: true, forStaff: true, payload: { acceptingOrders: settings.acceptingOrders } })
   return settings
 }
+
+/** Quick pause/resume from the canteen orders board (busy hours, stock issues). */
+export async function setAcceptingOrders(actor: Actor, accepting: boolean) {
+  const allowed = canManageSettings(actor) || (actor.role === 'CANTEEN' && actor.permissions.includes('ORDERS'))
+  if (!allowed) throw new AppError('FORBIDDEN', 'You do not have permission to pause ordering.')
+  const settings = await db.kitchenSettings.update({
+    where: { id: 'default' },
+    data: { acceptingOrders: accepting, updatedById: actor.userId },
+  })
+  await audit({ actor, action: accepting ? 'kitchen.orders_resumed' : 'kitchen.orders_paused', entityType: 'KitchenSettings', entityId: 'default' })
+  await publishEvent(db, { type: 'KITCHEN_UPDATED', forCanteen: true, forStaff: true, payload: { acceptingOrders: settings.acceptingOrders } })
+  return settings
+}

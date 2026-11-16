@@ -287,3 +287,21 @@ export async function authenticateUser(
   if (!local.supabaseUserId) await db.user.update({ where: { id: local.id }, data: { supabaseUserId: data.user.id } })
   return { userId: local.id }
 }
+
+/**
+ * Signed-in USER changes their password (Supabase users). Checks the current
+ * password with Supabase, then sets the new one on that same session.
+ */
+export async function changeSupabasePassword(address: string, currentPassword: string, newPassword: string): Promise<'ok' | 'wrong_current'> {
+  requireSupabase()
+  const client = createSupabaseAuthClient()
+  const { error } = await client.auth.signInWithPassword({ email: address, password: currentPassword })
+  if (error) return 'wrong_current'
+  const { error: updateError } = await client.auth.updateUser({ password: newPassword })
+  await client.auth.signOut().catch(() => undefined)
+  if (updateError) {
+    console.error('[user-auth] password change failed', updateError.code, updateError.message)
+    throw new AppError('VALIDATION', 'We couldn’t change your password. Please try a different one.')
+  }
+  return 'ok'
+}

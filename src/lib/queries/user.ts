@@ -126,24 +126,6 @@ export async function getUserOrder(userId: string, orderId: string) {
   }
 }
 
-/** Items the user orders most, excluding sold-out ones. */
-export async function getRecommendations(userId: string, limit = 4) {
-  const top = await db.orderItem.groupBy({
-    by: ['foodItemId'],
-    where: { order: { userId, status: 'COLLECTED' } },
-    _sum: { quantity: true },
-    orderBy: { _sum: { quantity: 'desc' } },
-    take: 8,
-  })
-  const ids = top.map((t) => t.foodItemId)
-  const items = await db.foodItem.findMany({
-    where: { id: { in: ids }, isAvailable: true, category: { isActive: true } },
-    include: { category: true },
-  })
-  const ordered = ids.map((id) => items.find((i) => i.id === id)).filter((i): i is NonNullable<typeof i> => !!i)
-  return ordered.slice(0, limit)
-}
-
 export async function getUnreadNotifications(userId: string) {
   return db.notification.findMany({
     where: { userId, readAt: null },

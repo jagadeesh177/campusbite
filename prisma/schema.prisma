@@ -67,10 +67,6 @@ enum RefundStatus {
   FAILED
 }
 
-enum VerificationPurpose {
-  STUDENT_ACTIVATION
-}
-
 // ---------------------------------------------------------------------------
 // Identity & access
 // ---------------------------------------------------------------------------
@@ -162,56 +158,6 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
-}
-
-/// LEGACY (unused): single-use links from the old college-verified activation.
-/// Only the SHA-256 hash of the token is stored; the raw token exists only in
-/// the emailed link.
-model StudentAccessToken {
-  id                String             @id @default(cuid())
-  tokenHash         String             @unique
-  purpose           StudentTokenPurpose
-  /// Normalised college email the link was issued for
-  email             String
-  /// College student ID confirmed by the integration provider at request time
-  externalStudentId String
-  expiresAt         DateTime
-  usedAt            DateTime?
-  /// Set when a newer link replaces this one
-  invalidatedAt     DateTime?
-  createdAt         DateTime           @default(now())
-
-  @@index([email, purpose])
-}
-
-enum StudentTokenPurpose {
-  ACTIVATION
-  PASSWORD_RESET
-}
-
-/// LEGACY: 6-digit code activation (replaced by StudentAccessToken). Unused.
-model VerificationCode {
-  id         String              @id @default(cuid())
-  email      String
-  purpose    VerificationPurpose
-  codeHash   String
-  expiresAt  DateTime
-  attempts   Int                 @default(0)
-  consumedAt DateTime?
-  createdAt  DateTime            @default(now())
-
-  @@index([email, purpose])
-}
-
-/// Development-only outbox. Real deployments use an email provider.
-model DevMailMessage {
-  id        String   @id @default(cuid())
-  to        String
-  subject   String
-  body      String
-  createdAt DateTime @default(now())
-
-  @@index([createdAt])
 }
 
 model RateLimitBucket {

@@ -8,7 +8,7 @@ import { audit } from '@/lib/audit'
 import { toActionError } from '@/lib/errors'
 import { getClientInfo } from '@/lib/request'
 import { authenticate } from '@/lib/auth/login'
-import { completeUserLink, registerUser, requestUserPasswordReset } from '@/lib/auth/user-auth'
+import { changeSupabasePassword, completeUserLink, registerUser, requestUserPasswordReset } from '@/lib/auth/user-auth'
 import { createSession, destroySession, getSessionUser, revokeAllSessions } from '@/lib/auth/session'
 import { hashPassword, passwordSchema, verifyPassword } from '@/lib/auth/password'
 import { PORTAL_HOME } from '@/lib/auth/guards'
@@ -124,13 +124,23 @@ export async function changePasswordAction(_prev: FormState, formData: FormData)
     return toActionError(e)
   }
   const row = await db.user.findUniqueOrThrow({ where: { id: user.id } })
-  if (!(await verifyPassword(parsed.data.currentPassword, row.passwordHash))) {
-    return { fieldErrors: { currentPassword: ['Current password is incorrect'] } }
+  if (row.supabaseUserId) {
+    // Registered users keep their password in Supabase Auth
+    try {
+      const r = await changeSupabasePassword(row.email, parsed.data.currentPassword, parsed.data.newPassword)
+      if (r === 'wrong_current') return { fieldErrors: { currentPassword: ['Current password is incorrect'] } }
+    } catch (e) {
+      return toActionError(e)
+    }
+  } else {
+    if (!(await verifyPassword(parsed.data.currentPassword, row.passwordHash))) {
+      return { fieldErrors: { currentPassword: ['Current password is incorrect'] } }
+    }
+    await db.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await hashPassword(parsed.data.newPassword), mustChangePassword: false },
+    })
   }
-  await db.user.update({
-    where: { id: user.id },
-    data: { passwordHash: await hashPassword(parsed.data.newPassword), mustChangePassword: false },
-  })
   await revokeAllSessions(user.id, user.sessionId)
   await audit({ actor: { userId: user.id, role: user.role }, action: 'auth.password_changed', entityType: 'User', entityId: user.id })
   redirect(PORTAL_HOME[user.role])

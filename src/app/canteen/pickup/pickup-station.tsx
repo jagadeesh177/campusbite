@@ -165,7 +165,7 @@ export function PickupStation() {
                 <div>
                   <div className="font-mono text-sm font-bold text-subtle">{preview.orderNumber}</div>
                   <div className="mt-1 text-2xl font-bold">{preview.userName}</div>
-                  <div className="text-sm text-muted">{preview.studentId ?? 'No student ID'}</div>
+                  {preview.studentId && <div className="text-sm text-muted">{preview.studentId}</div>}
                 </div>
                 <OrderStatusBadge status={preview.status} />
               </div>

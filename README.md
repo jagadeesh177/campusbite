@@ -1,6 +1,6 @@
 # CampusBite
 
-College canteen pre-ordering platform. Users order from anywhere on campus, pay online (UPI via Razorpay), track their order live and collect it with a one-time pickup code. The canteen works from a simple tablet board; college staff get reports, payments, refunds, accounts and an audit log.
+College canteen pre-ordering platform. Users order from anywhere on campus, pay online (UPI via Razorpay), track their order live and collect it with a one-time pickup code. The canteen works from a simple tablet board; college staff get orders, reports, payments, refunds, accounts and an activity log.
 
 **Status:** pilot-ready architecture with real ordering, payment verification, refunds, pickup verification and realtime updates. Some external services still need credentials or college authorisation — see [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md).
 
@@ -58,6 +58,18 @@ tests/                   unit + integration tests
 Business logic lives in `src/lib/**` as plain functions that take an explicit `Actor`. Server actions and routes only authenticate and delegate — that's what makes the logic testable and keeps permission checks in one place.
 
 ---
+
+## The three portals
+
+| Portal | Menu | What it's for |
+|---|---|---|
+| **User** (`/login/user`) | Home · Cart · My Orders · Profile | Home = menu with search and categories plus your current order. Cart = items, pickup time and Pay on one page. My Orders = live tracking with pickup code/QR on top, past orders below. Profile = details, password, delete account. |
+| **Canteen** (`/login/canteen`) | Orders · Verify pickup · History · Menu | Orders board in four columns (New, Preparing, Ready, Completed) with big action buttons and a Pause/Resume switch for new orders. Verify pickup by QR or code. Menu = add/edit food, prices, sold out. |
+| **Staff** (`/login/staff`) | Dashboard · Orders · Users · Menu · Payments · Reports · Accounts · Settings | Dashboard = today's numbers + latest orders. Accounts = canteen and staff accounts (tabs). Settings = kitchen hours/fees and the activity log (tabs). Menu items depend on each staff member's permissions. |
+
+Order flow: **Browse food → Add to cart → Pay → Track → Collect.** An order is confirmed only after the server verifies the payment; the canteen then accepts it, prepares it, marks it ready (the user is notified) and hands it over after checking the single-use pickup code.
+
+Old links keep working: `/user/menu` → Home, `/user/history` → My Orders, `/user/checkout` → Cart, `/canteen/settings` → Orders board.
 
 ## Roles
 
@@ -149,7 +161,7 @@ Users sign up with **any valid personal email** (Gmail, Outlook, Yahoo, …). Th
 
 **Forgot password** (`/forgot-password`) sends a Supabase recovery link to the same page. Users sign in at `/login/user` through Supabase (`signInWithPassword`). Demo users created by the seed script (no Supabase account yet) keep their local password until they use *Forgot password*, which moves them to Supabase.
 
-**Limits and edge cases:** one email per address every 15 minutes (registration and reset separately), 10 emails per hour per network, plus Supabase's own limits. Duplicate emails get the same "check your inbox" response without an email (no account enumeration) and a hint to sign in or reset. Staff/canteen emails can never become users. If Supabase can't send, the user sees an error, nothing is activated, and they can retry immediately. All requests are written to the audit log — never passwords or tokens.
+**Limits and edge cases:** one email per address every 15 minutes (registration and reset separately), 10 emails per hour per network, plus Supabase's own limits. Duplicate emails get the same "check your inbox" response without an email (no account enumeration) and a hint to sign in or reset. Staff/canteen emails can never become users. If Supabase can't send, the user sees an error, nothing is activated, and they can retry immediately. All requests are written to the activity log — never passwords or tokens.
 
 ### Delete account
 

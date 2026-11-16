@@ -45,6 +45,12 @@ const nextConfig: NextConfig = {
       { source: '/student/:path*', destination: '/user/:path*', permanent: true },
       { source: '/staff/students', destination: '/staff/users', permanent: true },
       { source: '/staff/students/:path*', destination: '/staff/users/:path*', permanent: true },
+      // Simplified user portal: menu lives on Home, history on My Orders, checkout on Cart
+      { source: '/user/menu', destination: '/user/dashboard', permanent: true },
+      { source: '/user/history', destination: '/user/orders', permanent: true },
+      { source: '/user/checkout', destination: '/user/cart', permanent: true },
+      // Kitchen settings live in the staff portal; the canteen board has a pause/resume switch
+      { source: '/canteen/settings', destination: '/canteen/dashboard', permanent: false },
     ]
   },
 }

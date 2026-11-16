@@ -30,7 +30,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           OR: [
             { email: { contains: q, mode: 'insensitive' } },
             { name: { contains: q, mode: 'insensitive' } },
-            { userProfile: { externalStudentId: { contains: q, mode: 'insensitive' } } },
+            { userProfile: { phone: { contains: q } } },
           ],
         }
       : {}),
@@ -55,9 +55,9 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       </Notice>
       <form className="mb-4 flex gap-2" role="search">
         <label className="relative flex-1">
-          <span className="sr-only">Search by student ID, email or name</span>
+          <span className="sr-only">Search by name, email or mobile</span>
           <Search className="pointer-events-none absolute top-1/2 left-3.5 h-4.5 w-4.5 -translate-y-1/2 text-muted" />
-          <Input name="q" defaultValue={q} placeholder="Search by name, email or student ID" className="pl-10" />
+          <Input name="q" defaultValue={q} placeholder="Search by name, email or mobile" className="pl-10" />
         </label>
         <Button type="submit">Search</Button>
       </form>
@@ -71,7 +71,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
               <thead>
                 <tr className="border-b border-line text-left text-subtle">
                   <th className="px-6 py-3 font-medium">User</th>
-                  <th className="px-3 py-3 font-medium">Student ID</th>
+                  <th className="px-3 py-3 font-medium">Mobile</th>
                   <th className="px-3 py-3 font-medium">Department</th>
                   <th className="px-3 py-3 font-medium">Status</th>
                   <th className="px-3 py-3 text-right font-medium">Orders</th>
@@ -86,7 +86,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                       <Link href={`/staff/users/${s.id}`} className="font-semibold text-ink hover:text-primary">{s.name}</Link>
                       <div className="text-xs text-subtle">{s.email}</div>
                     </td>
-                    <td className="px-3 py-3 font-mono">{s.userProfile?.externalStudentId ?? '—'}</td>
+                    <td className="px-3 py-3 tabular-nums">{s.userProfile?.phone ?? '—'}</td>
                     <td className="px-3 py-3">{s.userProfile?.department ?? '—'}</td>
                     <td className="px-3 py-3">
                       <Badge tone={s.status === 'ACTIVE' ? 'success' : s.status === 'DEACTIVATED' ? 'danger' : 'neutral'} dot>

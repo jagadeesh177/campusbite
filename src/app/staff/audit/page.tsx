@@ -10,8 +10,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { Input } from '@/components/ui/form'
 import { EmptyState, PageHeader } from '@/components/ui/misc'
+import { SectionTabs, settingsTabs } from '@/components/staff/section-tabs'
 
-export const metadata: Metadata = { title: 'Audit log' }
+export const metadata: Metadata = { title: 'Activity log' }
 export const dynamic = 'force-dynamic'
 
 const PAGE = 40
@@ -25,7 +26,7 @@ function tone(action: string) {
 }
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
-  await requirePortalUser('STAFF', 'AUDIT')
+  const user = await requirePortalUser('STAFF', 'AUDIT')
   const sp = await searchParams
   const q = (sp.q ?? '').trim().slice(0, 60)
   const page = Math.max(1, Number(sp.page) || 1)
@@ -40,7 +41,8 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Audit log" description="Append-only record of account, permission, menu, order and payment actions." />
+      <PageHeader title="Settings" description="Activity log: who changed accounts, menus, orders and payments." />
+      <SectionTabs tabs={settingsTabs(user.permissions)} active="/staff/audit" />
       <form className="mb-4 flex gap-2" role="search">
         <label className="relative flex-1">
           <span className="sr-only">Filter audit log</span>

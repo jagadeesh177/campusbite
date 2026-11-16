@@ -73,3 +73,28 @@ Security checks that **passed** (keep as is): roles come only from the database;
 6. **Test** every portal (automated + browser, mobile/tablet/desktop), update README, final report.
 
 Nothing in this plan removes a working capability; every removed page is merged into another or redirected.
+
+## 8. Results (implemented 16 Nov 2026)
+
+| Item | Done |
+|---|---|
+| B1 Change password for registered users | ✅ goes through Supabase (current password checked); test added |
+| B2 Staff can see all orders | ✅ new **Orders** page with filters, search, paging |
+| B3 Real payments | ⏳ still needs Razorpay keys (external). Test-mode notices now in plain words |
+| B4/C6 Student-only fields | ✅ removed from user profile, staff user list (now shows Mobile), canteen board and pickup screen (shown only when present) |
+| D1 My Orders + Order History | ✅ merged into **My Orders**; `/user/history` redirects |
+| D2 Dashboard + Food Menu | ✅ merged into **Home**; `/user/menu` redirects |
+| D3 Cart + Checkout | ✅ one **Cart** page (edit items, pickup time, Pay); `/user/checkout` redirects |
+| D4 Food & menu in two portals | Kept in both on purpose — the spec gives menu management to staff *and* canteen; same component, no duplicated code. Staff page renamed **Menu** |
+| D5 Kitchen settings in two portals | ✅ only in Staff → Settings; canteen gets a **Pause/Resume orders** switch on its board |
+| C1 User menu | ✅ Home · Cart · My Orders · Profile |
+| C2 Staff menu | ✅ 9 → 8 items: Dashboard · Orders · Users · Menu · Payments · Reports · Accounts (tabs) · Settings (tabs incl. Activity log) |
+| C3 Canteen menu | ✅ Orders · Verify pickup · History (new) · Menu |
+| C4 Staff dashboard | ✅ 4 numbers + latest orders; charts only in Reports |
+| C5 Plain wording | ✅ "Test mode", "Activity log", "Updates by itself" |
+| Q1 Unused packages | ✅ removed `react-hook-form`, `@hookform/resolvers` |
+| Q2 Legacy tables | ✅ dropped `VerificationCode`, `StudentAccessToken`, `DevMailMessage` (migration `20261116160000`) |
+| Q3 Old Vercel env vars | ✅ removed 10 unused variables incl. the old stored Gmail app password |
+| Q4 Images | ✅ food photos served through the Next.js image optimiser (resized, WebP) |
+
+Remaining: Razorpay keys for real payments; Gmail sending limit (~500/day) — move Supabase SMTP to Resend with a domain for more.

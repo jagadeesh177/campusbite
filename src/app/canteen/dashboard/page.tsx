@@ -1,18 +1,20 @@
 import type { Metadata } from 'next'
-import { CheckCircle2, ChefHat, IndianRupee, Inbox, PackageCheck } from 'lucide-react'
+import { QrCode } from 'lucide-react'
 import { requirePortalUser } from '@/lib/auth/guards'
 import { env } from '@/lib/env'
 import { getKitchenSettings, kitchenStatus } from '@/lib/kitchen'
 import { getKitchenBoard } from '@/lib/queries/canteen'
 import { formatINR } from '@/lib/money'
-import { Notice, PageHeader, StatCard } from '@/components/ui/misc'
+import { Notice } from '@/components/ui/misc'
 import { ButtonLink } from '@/components/ui/button'
 import { OrderBoard } from '@/components/canteen/order-board'
+import { AcceptingSwitch } from '@/components/canteen/accepting-switch'
 
 export const metadata: Metadata = { title: 'Orders' }
 export const dynamic = 'force-dynamic'
 
-export default async function CanteenDashboard({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
+/** The canteen's main screen: New → Preparing → Ready → Completed. */
+export default async function CanteenOrders({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   const user = await requirePortalUser('CANTEEN')
   const { denied } = await searchParams
   if (!user.permissions.includes('ORDERS')) {
@@ -27,24 +29,26 @@ export default async function CanteenDashboard({ searchParams }: { searchParams:
 
   return (
     <>
-      <PageHeader
-        title="Kitchen orders"
-        description="Paid orders appear here instantly. Tap the big button to move each order along."
-        action={<ButtonLink href="/canteen/pickup" variant="secondary">Verify pickup</ButtonLink>}
-      />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-ink">Orders</h1>
+          <p className="text-sm text-muted">
+            Today: {stats.completedToday} collected · {formatINR(stats.salesTodayPaise)} sales
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <AcceptingSwitch accepting={settings.acceptingOrders} />
+          <ButtonLink href="/canteen/pickup" size="lg">
+            <QrCode className="h-5 w-5" /> Verify pickup
+          </ButtonLink>
+        </div>
+      </div>
       {denied && <Notice tone="warning" className="mb-4">You don&apos;t have permission for that page.</Notice>}
-      {!kitchen.open && (
+      {!kitchen.open && settings.acceptingOrders && (
         <Notice tone="warning" title="Users can’t place new orders right now" className="mb-4">
           {kitchen.message}
         </Notice>
       )}
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
-        <StatCard label="New" value={stats.newOrders} icon={Inbox} tone="info" />
-        <StatCard label="Preparing" value={stats.preparing} icon={ChefHat} tone="accent" />
-        <StatCard label="Ready" value={stats.ready} icon={PackageCheck} tone="success" />
-        <StatCard label="Completed today" value={stats.completedToday} icon={CheckCircle2} tone="primary" />
-        <StatCard label="Today’s sales" value={formatINR(stats.salesTodayPaise)} icon={IndianRupee} tone="primary" />
-      </div>
       <OrderBoard orders={orders} tz={env.timezone} />
     </>
   )
