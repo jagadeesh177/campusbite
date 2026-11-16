@@ -23,7 +23,7 @@ College canteen pre-ordering platform. Students order from anywhere on campus, p
 ### Why not Socket.IO / Auth.js?
 
 - **Realtime:** Vercel runs serverless functions; Socket.IO needs a long-lived server. CampusBite writes a `RealtimeEvent` row in the *same transaction* as each change, and `/api/events` streams rows the signed-in user is allowed to see. Clients reconnect automatically and fall back to 5-second polling. No extra service or credentials needed. If you later want push at large scale, swap the transport (Pusher/Ably) behind `src/lib/realtime/` without touching business logic.
-- **Auth:** the app needs three role-locked portals, per-role session lifetimes, college-verified student activation and admin-created staff accounts with forced password change. A small, fully server-side session layer (`src/lib/auth/`) keeps every role decision on the server and is easy to audit.
+- **Auth:** students register, verify their email, manage passwords and sign in through **Supabase Auth**; staff and canteen accounts are created by administrators and use CampusBite's own password login. In both cases CampusBite then issues its own HTTP-only session (`src/lib/auth/session.ts`), so every role decision stays on the server.
 
 ---
 
@@ -37,15 +37,16 @@ prisma/
 src/
   app/
     (site)/              public website: landing, about, support, privacy, terms
-    login/, activate/    three login portals + student activation
+    login/, activate/    three login portals + student registration
+    auth/confirm/        landing page for Supabase activation / reset links
     student/             student portal
     canteen/             canteen portal (orders board, pickup, menu, settings)
     staff/               staff/admin portal (dashboard, students, canteen, food, payments, reports, team, audit)
     actions/             server actions (thin wrappers: authenticate → call service)
     api/                 events (SSE), Razorpay verify/webhook, images, CSV export, cron
   lib/
-    auth/                sessions, passwords, guards, permissions, rate limiting, login, activation
-    college/             CollegeIntegrationProvider + mock and API-template adapters
+    auth/                sessions, passwords, guards, permissions, rate limiting, login,
+                         supabase.ts + student-auth.ts (student registration via Supabase Auth)
     orders/              state machine, pricing, order creation, transitions, pickup, expiry
     payments/            gateways, signature verification, confirmation, refunds, simulator, webhooks
     realtime/            event publishing
@@ -112,47 +113,53 @@ Created by the seed. **Never shown on login pages.** Delete or change them befor
 
 | Portal | Email | Password | Notes |
 |---|---|---|---|
-| Student | `aarav.sharma@college.edu` | `Student@123` | 10 seeded students (see `src/lib/college/mock-provider.ts`), all share this password |
+| Student | `aarav.sharma@college.edu` | `Student@123` | 10 fictional demo students (see `prisma/demo-students.ts`), all share this password |
 | Staff (admin) | `admin@college.edu` | `Staff@123` | every staff permission |
 | Staff (accounts) | `finance@college.edu` | `Staff@123` | students, payments, reports, audit only |
 | Canteen (manager) | `kitchen@college.edu` | `Canteen@123` | orders, menu, settings |
 | Canteen (counter) | `counter@college.edu` | `Canteen@123` | orders only |
 
-**Try student activation:** go to `/activate` with `neha.rao@college.edu` or `karan.mehta@college.edu` (enrolled in the mock directory but not yet activated). The activation link appears in the dev mailbox at `/dev/mailbox`. `old.graduate@college.edu` (not enrolled) and Gmail addresses get no link. Set `APP_URL` to the address you browse (e.g. `http://localhost:3000`) so emailed links point at the right host.
+**Try student registration:** go to `/activate`, sign up with any real personal email you can open, and follow the link in the email. This needs Supabase configured (see below) — there is no mock email delivery.
 
 **Testing two roles at once in one browser:** cookies are per host, so use `http://localhost:3000` for one role and `http://127.0.0.1:3000` (or `127.0.0.2`) for another.
 
 ---
 
-## Student activation (college-verified)
+## Student registration (Supabase Auth)
 
-Only students use self-service activation; staff and canteen accounts are created by an administrator.
+Students sign up with **any valid personal email** (Gmail, Outlook, Yahoo, …). There is no college email rule and CampusBite does not connect to any college database. Staff and canteen accounts are still created only by administrators.
 
-1. **`/activate`** — the student enters their college email and clicks **Verify My Email**.
-2. The server checks the email domain (`COLLEGE_EMAIL_DOMAINS`) and asks the **college integration provider** (`src/lib/college/`) whether it is an eligible, enrolled student. The page always shows the same "check your inbox" message, so it never reveals who is a student.
-3. If eligible, a 256-bit random token is emailed as a link (`/activate/confirm?token=…`). Only its **SHA-256 hash** is stored (`StudentAccessToken` table), it **expires after 15 minutes**, and **only one link can be active per email**: while it is unused and unexpired, further requests send no new email (one email per 15 minutes). Requests are also **rate-limited** (5/hour per email, 20/hour per IP).
-4. **`/activate/confirm`** — **Create Your Password** with show/hide, strength meter and rules (min 8 characters, a letter and a number; checked again on the server).
-5. On submit the server re-checks eligibility, **consumes the token atomically** (single use, even under simultaneous submissions), creates/activates the account with the **STUDENT role assigned server-side**, links it to the college student ID, signs the student in and shows *"Your CampusBite account is ready!"*.
+1. **`/activate`** — *Create Your CampusBite Account*: email, full name, mobile number, optional department → **Activate My Account**.
+2. The server validates the input, creates a **pending** `STUDENT` account (role assigned server-side; it cannot sign in yet) and asks Supabase Auth to email an activation link (`signInWithOtp`).
+3. The student sees *"Check your inbox! We've sent you an activation link."* with a **Resend activation email** button.
+4. The link opens **`/auth/confirm`** — *Create Your Password*. Opening the page does **not** use the link up (so email scanners can't burn it); Supabase verifies it only when the password is submitted, enforcing **expiry and single use**.
+5. CampusBite sets the password in Supabase, activates the account, signs the student in with its own session and shows *"Your CampusBite account is ready!"* on the Student Dashboard.
 
-**Forgot password** (`/forgot-password`, students only) uses the same single-use link mechanism and signs the student out of other devices.
+**Forgot password** (`/forgot-password`) sends a Supabase recovery link to the same page. Students sign in at `/login/student` through Supabase (`signInWithPassword`). Demo students created by the seed script (no Supabase account yet) keep their local password until they use *Forgot password*, which moves them to Supabase.
 
-Every request and outcome is written to the audit log — never tokens or passwords; unknown emails are logged by domain only.
+**Limits and edge cases:** one email per address every 15 minutes (registration and reset separately), 10 emails per hour per network, plus Supabase's own limits. Duplicate emails get the same "check your inbox" response without an email (no account enumeration) and a hint to sign in or reset. Staff/canteen emails can never become students. If Supabase can't send, the student sees an error, nothing is activated, and they can retry immediately. All requests are written to the audit log — never passwords or tokens.
 
-> **Mock verification:** while `COLLEGE_PROVIDER=mock`, emails are checked against the fictional directory in `src/lib/college/mock-provider.ts` (plus optional `MOCK_EXTRA_STUDENTS`). The activation page says so. **CampusBite is not connected to any real college database** until a real adapter is configured — see `src/lib/college/README.md`.
+### Supabase + Resend configuration
 
-### Email delivery
+**Environment variables** (Vercel → Settings → Environment Variables, and `.env` locally):
 
-| `EMAIL_PROVIDER` | Use | Required variables |
-|---|---|---|
-| `dev-outbox` | Development: emails are stored and shown at `/dev/mailbox` (needs `DEV_TOOLS_ENABLED=true`) | — |
-| `smtp` | Any SMTP server, e.g. Gmail with an app password | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, optional `EMAIL_FROM` |
-| `resend` | Resend API | `RESEND_API_KEY`, `EMAIL_FROM` |
+| Variable | Value |
+|---|---|
+| `SUPABASE_URL` | Project URL, e.g. `https://abcd1234.supabase.co` (Supabase → Project Settings → API) |
+| `SUPABASE_ANON_KEY` | The project's **anon / publishable** key (same page). The service-role key is **not** needed. |
+| `APP_URL` | Public HTTPS address, e.g. `https://getcampusbite.vercel.app` |
 
-`APP_URL` must be the public HTTPS address — activation links are built from it, never from request headers (prevents link-poisoning attacks).
+**Supabase dashboard** (Authentication section):
 
-### Why not Supabase Auth?
+1. **URL Configuration** → Site URL = your `APP_URL`; add `https://getcampusbite.vercel.app/**` and `http://localhost:3000/**` to Redirect URLs.
+2. **Sign In / Providers → Email**: enabled. Set **Email OTP Expiration** to `900` seconds (15 minutes).
+3. **Email Templates** — make the links point to CampusBite's confirm page:
+   - *Confirm signup* and *Magic Link*: `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">Activate My Account</a>`
+   - *Reset Password*: `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery">Reset my password</a>`
+4. **SMTP Settings** → enable custom SMTP with **Resend**: host `smtp.resend.com`, port `465`, username `resend`, password = a Resend API key, sender e.g. `CampusBite <no-reply@your-domain>`.
+5. **Rate Limits** → raise *emails sent per hour* if needed (Supabase's built-in sender is limited to a few emails per hour and is not for production).
 
-The brief suggested Supabase Auth but also said not to replace an existing auth system. CampusBite already has server-side authentication (bcrypt-hashed passwords, HTTP-only database sessions, server-enforced roles, three separate portals) covered by tests, and no Supabase project is configured. The activation workflow is therefore built on the existing system rather than running two auth systems side by side. Moving to Supabase Auth later would mean: creating a Supabase project (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, server-only `SUPABASE_SERVICE_ROLE_KEY`), replacing `src/lib/auth/session.ts` and `src/lib/auth/login.ts` with Supabase sessions, migrating password hashes, and mapping Supabase user IDs to `User` rows — the activation, college-verification and role logic can stay as they are.
+**Resend:** create an account, **verify a domain you own** (add the DNS records Resend shows), then create an API key with *sending access*. Without a verified domain Resend only delivers to your own account email, so other students would not receive links.
 
 ## Tests
 
@@ -163,7 +170,7 @@ npm test
 68 tests. Integration tests run against `<your database>_test` (created/migrated automatically with `prisma migrate deploy`; tables are truncated per test — the runner refuses any database not ending in `_test`). Covered:
 
 - Authentication, portal/role locking, deactivated accounts, enrollment re-checks, rate limiting (incl. atomicity under concurrency)
-- Student activation by email link: valid student, unknown email, invalid format, duplicate requests (old link invalidated + rate limit), delivery (dev outbox + SMTP adapter), expired link, invalid token, token reuse incl. simultaneous submissions, password creation, login after activation, password reset
+- Student registration (Supabase Auth replaced by an in-memory fake that enforces expiry and single use): Gmail/Outlook/Yahoo/other emails, invalid emails and details, duplicates (active student, staff email), failed email delivery, Supabase not configured, resend rate limiting (per email and per network), activation → STUDENT role → login, link reuse incl. simultaneous submissions, expired/invalid links, weak passwords, staff email can't become a student, unconfirmed Supabase user, password reset, demo-account migration
 - Menu availability, cart calculations, server-side pricing (client prices ignored)
 - Order creation idempotency under 6 simultaneous submissions; 8 students ordering at once; kitchen capacity
 - Payment verification, amount/currency mismatch (fake confirmation), cross-student payment attempts, failed-then-retried payments
@@ -179,9 +186,8 @@ npm test
 1. **Database:** create a managed Postgres with point-in-time recovery (Neon, Supabase, Vercel Postgres/Prisma Postgres, RDS, etc.). Use the **pooled** connection string for `DATABASE_URL` and the **direct** one for `DIRECT_URL`.
 2. **Environment variables** (Vercel → Project → Settings → Environment Variables): everything in `.env.example`. In production set:
    - `PAYMENT_PROVIDER="razorpay"`, Razorpay keys, `PAYMENT_SIMULATOR_ENABLED="false"`
-   - `DEV_TOOLS_ENABLED="false"`
    - `APP_URL` to your HTTPS domain
-   - a real `EMAIL_PROVIDER` (see DEVELOPMENT_STATUS — required for student activation)
+   - `SUPABASE_URL` and `SUPABASE_ANON_KEY`, with Supabase configured to send through Resend (see *Supabase + Resend configuration*) — required for student registration
 3. **Build command:** Vercel uses `npm run vercel-build` automatically, which runs `prisma generate && prisma migrate deploy && next build`.
 4. **Region:** `vercel.json` pins functions to Mumbai (`bom1`); put the database in the same region.
 5. **Cron:** `vercel.json` schedules `/api/cron/expire-orders` daily (Hobby plan limit). Unpaid orders are also expired automatically before every checkout and whenever the kitchen board loads. On a Pro plan you can run it every 15 minutes.

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { authenticate } from '@/lib/auth/login'
 import { rateLimit } from '@/lib/auth/rate-limit'
 import { AppError } from '@/lib/errors'
-import { createCanteen, createStaff, createStudent, prisma, resetDb, TEST_PASSWORD } from '../helpers'
+import { createCanteen, createStaff, createStudent, resetDb, TEST_PASSWORD } from '../helpers'
 
 beforeEach(resetDb)
 
@@ -29,12 +29,6 @@ describe('login', () => {
     await expectAppError(authenticate('STUDENT', { email: s.user.email, password: 'wrong-pass1' }, null), 'UNAUTHORIZED')
     await expectAppError(authenticate('STUDENT', { email: 'nobody@college.edu', password: TEST_PASSWORD }, null), 'UNAUTHORIZED')
     await expectAppError(authenticate('STUDENT', { email: gone.user.email, password: TEST_PASSWORD }, null), 'FORBIDDEN')
-  })
-
-  it('blocks a student whose enrollment ended (re-checked with the college)', async () => {
-    const s = await createStudent({ studentId: '20CS050', email: 'old.graduate@college.edu' })
-    await prisma.studentProfile.update({ where: { userId: s.user.id }, data: { enrollmentCheckedAt: new Date(0) } })
-    await expectAppError(authenticate('STUDENT', { email: s.user.email, password: TEST_PASSWORD }, null), 'FORBIDDEN')
   })
 
   it('rate-limits repeated failures', async () => {

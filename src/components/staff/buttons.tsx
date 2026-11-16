@@ -20,7 +20,7 @@ export function StudentAccessButton({ userId, active, name }: { userId: string; 
         description={
           active
             ? 'They will be signed out and unable to order. This does not change their college enrollment.'
-            : 'They will be able to sign in and order again (if still enrolled).'
+            : 'They will be able to sign in and order again.'
         }
         confirmLabel={active ? 'Revoke access' : 'Restore access'}
         confirmVariant={active ? 'danger' : 'primary'}

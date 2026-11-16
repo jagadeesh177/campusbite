@@ -5,7 +5,7 @@
 import { PrismaClient, type FoodItem, type OrderStatus, type User } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { CATEGORIES, FOODS, DEMO_PASSWORDS, STAFF_ACCOUNTS, CANTEEN_ACCOUNTS } from './seed-data'
-import { MOCK_COLLEGE_DIRECTORY } from '../src/lib/college/mock-provider'
+import { DEMO_STUDENTS } from './demo-students'
 import { generateOrderNumber, generatePickupToken } from '../src/lib/orders/codes'
 import { paiseToDecimalString, rupeesToPaise } from '../src/lib/money'
 import { startOfZonedDay } from '../src/lib/time'
@@ -89,10 +89,9 @@ async function main() {
   ])
   const now = new Date()
 
-  // First 10 enrolled students from the mock directory get active accounts;
-  // the rest are left un-activated to demo the activation flow.
+  // Fictional demo students with ready-made accounts (new students self-register with any email)
   const students: User[] = []
-  for (const s of MOCK_COLLEGE_DIRECTORY.filter((s) => s.enrollmentStatus === 'ENROLLED').slice(0, 10)) {
+  for (const s of DEMO_STUDENTS) {
     students.push(
       await prisma.user.create({
         data: {
@@ -105,7 +104,7 @@ async function main() {
           studentProfile: {
             create: {
               externalStudentId: s.studentId,
-              integrationSource: 'mock',
+              integrationSource: 'demo-seed',
               department: s.department,
               programme: s.programme,
               yearOfStudy: s.yearOfStudy,

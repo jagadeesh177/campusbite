@@ -5,7 +5,6 @@ import { normalizeCartLines, priceCart } from '@/lib/orders/pricing'
 import { allowedTransitions, canTransition } from '@/lib/orders/state-machine'
 import { buildPickupQrPayload, generateOrderNumber, generatePickupToken, parsePickupInput, PICKUP_TOKEN_PATTERN } from '@/lib/orders/codes'
 import { safeEqualHex, verifyRazorpayCheckoutSignature, verifyRazorpayWebhookSignature } from '@/lib/payments/signatures'
-import { MockCollegeProvider } from '@/lib/college/mock-provider'
 import { isOpenAt, parseHHMM, pickupSlots, zonedMinutesOfDay } from '@/lib/time'
 
 describe('money', () => {
@@ -114,39 +113,6 @@ describe('payment signatures', () => {
   })
   it('safeEqualHex handles mismatched lengths', () => {
     expect(safeEqualHex('ab', 'abcd')).toBe(false)
-  })
-})
-
-describe('mock college provider (student eligibility)', () => {
-  const p = new MockCollegeProvider()
-  it('accepts enrolled students', async () => {
-    expect(await p.verifyStudent('Aarav.Sharma@college.edu')).toEqual({ eligible: true, studentId: '22CS101' })
-  })
-  it('rejects unknown and graduated students', async () => {
-    expect(await p.verifyStudent('someone@gmail.com')).toEqual({ eligible: false, reason: 'NOT_FOUND' })
-    expect(await p.verifyStudent('old.graduate@college.edu')).toEqual({ eligible: false, reason: 'NOT_ENROLLED' })
-    expect(await p.checkEnrollmentStatus('20CS050')).toBe('NOT_ENROLLED')
-    expect(await p.checkEnrollmentStatus('nope')).toBe('UNKNOWN')
-  })
-})
-
-describe('extra pilot students from env', () => {
-  it('parses valid entries, normalises email, skips junk', async () => {
-    const { parseExtraStudents } = await import('@/lib/college/mock-provider')
-    const list = parseExtraStudents(
-      JSON.stringify([
-        { studentId: 'X1', email: ' Someone@Uni.EDU ', fullName: 'Some One', programme: 'B.Tech' },
-        { email: 'missing-id@uni.edu', fullName: 'Nope' },
-        'garbage',
-      ]),
-    )
-    expect(list).toEqual([
-      { studentId: 'X1', email: 'someone@uni.edu', fullName: 'Some One', programme: 'B.Tech', department: undefined, yearOfStudy: undefined, enrollmentStatus: 'ENROLLED' },
-    ])
-    expect(parseExtraStudents('not json')).toEqual([])
-    expect(parseExtraStudents(undefined)).toEqual([])
-    const p = new MockCollegeProvider(list)
-    expect(await p.verifyStudent('SOMEONE@uni.edu')).toEqual({ eligible: true, studentId: 'X1' })
   })
 })
 

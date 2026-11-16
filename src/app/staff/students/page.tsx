@@ -57,7 +57,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         <label className="relative flex-1">
           <span className="sr-only">Search by student ID, email or name</span>
           <Search className="pointer-events-none absolute top-1/2 left-3.5 h-4.5 w-4.5 -translate-y-1/2 text-muted" />
-          <Input name="q" defaultValue={q} placeholder="Search by student ID, college email or name" className="pl-10" />
+          <Input name="q" defaultValue={q} placeholder="Search by name, email or student ID" className="pl-10" />
         </label>
         <Button type="submit">Search</Button>
       </form>

@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { AuthShell } from '@/components/auth/auth-shell'
 import { LinkRequestForm } from '@/components/auth/link-request-form'
 import { redirectIfSignedIn } from '@/components/auth/redirect-if-signed-in'
-import { env } from '@/lib/env'
 
 export const metadata: Metadata = { title: 'Reset your password' }
 export const dynamic = 'force-dynamic'
@@ -12,8 +11,8 @@ export const dynamic = 'force-dynamic'
 export default async function ForgotPasswordPage() {
   await redirectIfSignedIn()
   return (
-    <AuthShell title="Reset your password" subtitle="Enter your college email and we’ll send you a secure reset link.">
-      <LinkRequestForm purpose="PASSWORD_RESET" devMailbox={env.devToolsEnabled && env.emailProvider === 'dev-outbox'} />
+    <AuthShell title="Reset your password" subtitle="Enter your email and we’ll send you a secure reset link.">
+      <LinkRequestForm purpose="PASSWORD_RESET" />
       <p className="mt-8 text-center text-sm text-muted">
         Remembered it? <Link href="/login/student" className="font-medium text-primary hover:underline">Back to sign in</Link>
       </p>

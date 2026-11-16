@@ -25,7 +25,7 @@ export interface SessionUser {
   permissions: string[]
   mustChangePassword: boolean
   student: {
-    externalStudentId: string
+    externalStudentId: string | null
     enrollmentStatus: string
   } | null
 }

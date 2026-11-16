@@ -12,16 +12,16 @@ export default function PrivacyPage() {
       <section>
         <h2>What we collect</h2>
         <ul>
-          <li>Your name, college email address and college student ID, confirmed with college records.</li>
+          <li>Your name, email address and mobile number, which you give when you sign up. Your email is verified with a one-time link.</li>
           <li>Your orders: items, amounts, timestamps and pickup records.</li>
           <li>Payment references from the payment gateway. We never see or store your UPI PIN, card or bank details.</li>
-          <li>Optional preferences you choose to share, such as a phone number or dietary preference.</li>
+          <li>Optional preferences you choose to share, such as your department or dietary preference.</li><li>Sign-in and email verification are handled by Supabase Auth; activation emails are delivered by our email provider.</li>
         </ul>
       </section>
       <section>
         <h2>What we don&apos;t do</h2>
         <ul>
-          <li>We don&apos;t copy the college&apos;s student database — we only verify eligibility when you sign in.</li>
+          <li>We don&apos;t connect to or copy any college student database.</li>
           <li>We don&apos;t sell or share your data with advertisers.</li>
         </ul>
       </section>

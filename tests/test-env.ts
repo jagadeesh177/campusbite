@@ -17,14 +17,14 @@ export function loadTestEnv(): Record<string, string> {
     DATABASE_URL: testUrl,
     DIRECT_URL: testUrl,
     APP_TIMEZONE: 'Asia/Kolkata',
-    COLLEGE_PROVIDER: 'mock',
-    COLLEGE_EMAIL_DOMAINS: 'college.edu',
     PAYMENT_PROVIDER: 'simulator',
     PAYMENT_SIMULATOR_ENABLED: 'true',
     PAYMENT_SIMULATOR_SECRET: 'test-simulator-secret-0123456789',
     RAZORPAY_KEY_ID: 'rzp_test_key',
     RAZORPAY_KEY_SECRET: 'test_key_secret',
     RAZORPAY_WEBHOOK_SECRET: 'test_webhook_secret',
-    EMAIL_PROVIDER: 'dev-outbox',
+    // Supabase is replaced by an in-memory fake in tests (tests/fake-supabase.ts)
+    SUPABASE_URL: 'https://test-project.supabase.co',
+    SUPABASE_ANON_KEY: 'test-anon-key',
   }
 }

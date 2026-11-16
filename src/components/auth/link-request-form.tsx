@@ -2,25 +2,20 @@
 
 import { useActionState, useState } from 'react'
 import { MailCheck } from 'lucide-react'
-import {
-  requestActivationLinkAction,
-  requestPasswordResetLinkAction,
-  type LinkRequestState,
-} from '@/app/actions/auth'
+import { registerStudentAction, requestPasswordResetLinkAction, type LinkRequestState } from '@/app/actions/auth'
 import { Field, Input } from '@/components/ui/form'
 import { Notice } from '@/components/ui/misc'
 import { SubmitButton } from '@/components/ui/client'
 
-export function LinkRequestForm({
-  purpose,
-  devMailbox,
-}: {
-  purpose: 'ACTIVATION' | 'PASSWORD_RESET'
-  devMailbox: boolean
-}) {
-  const action = purpose === 'ACTIVATION' ? requestActivationLinkAction : requestPasswordResetLinkAction
+/**
+ * ACTIVATION: student registration with any personal email (name + mobile + optional department).
+ * PASSWORD_RESET: email only.
+ */
+export function LinkRequestForm({ purpose }: { purpose: 'ACTIVATION' | 'PASSWORD_RESET' }) {
+  const action = purpose === 'ACTIVATION' ? registerStudentAction : requestPasswordResetLinkAction
   const [state, formAction] = useActionState<LinkRequestState, FormData>(action, undefined)
   const [editing, setEditing] = useState(false)
+  const v = state?.values
 
   if (state?.sent && !editing) {
     return (
@@ -28,31 +23,46 @@ export function LinkRequestForm({
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-accent-ink">
           <MailCheck className="h-7 w-7" aria-hidden />
         </div>
-        <h2 className="mt-4 text-lg font-semibold">Check your inbox</h2>
+        <h2 className="mt-4 text-lg font-semibold">
+          {purpose === 'ACTIVATION' ? 'Check your inbox! We’ve sent you an activation link.' : 'Check your inbox'}
+        </h2>
         <p className="mt-2 text-sm text-muted">
-          If <strong className="text-ink">{state.email}</strong>{' '}
-          {purpose === 'ACTIVATION'
-            ? 'belongs to an eligible student who hasn’t activated yet, we’ve sent an activation link.'
-            : 'has an active CampusBite student account, we’ve sent a password reset link.'}{' '}
-          It expires in 15 minutes and works once.
+          {purpose === 'ACTIVATION' ? (
+            <>
+              We sent it to <strong className="text-ink">{state.email}</strong>. Open the link to create your password — it
+              works once and expires in 15 minutes.
+            </>
+          ) : (
+            <>
+              If <strong className="text-ink">{state.email}</strong> has an active CampusBite student account, we’ve sent a
+              password reset link. It works once and expires in 15 minutes.
+            </>
+          )}
         </p>
         <p className="mt-3 text-sm text-muted">
-          Only one link is sent every 15 minutes — if you already requested one, use that email. Don’t see it? Check
-          your Junk/Spam folder.
+          Don’t see it? Check your Junk/Spam folder. Only one email is sent every 15 minutes.
         </p>
-        {devMailbox && (
-          <Notice tone="info" title="Development mode" className="mt-4 text-left">
-            Emails aren’t sent in development. Open the{' '}
-            <a href="/dev/mailbox" target="_blank" className="font-semibold underline">dev mailbox</a> to find the link.
-          </Notice>
+        {purpose === 'ACTIVATION' && (
+          <p className="mt-2 text-sm text-muted">
+            Already have an account? <a href="/login/student" className="font-semibold text-primary hover:underline">Sign in</a>{' '}
+            or <a href="/forgot-password" className="font-semibold text-primary hover:underline">reset your password</a>.
+          </p>
         )}
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="mt-5 text-sm font-semibold text-primary hover:underline"
-        >
-          Use a different email or send again
-        </button>
+        <div className="mt-5 flex flex-col items-center gap-2">
+          {purpose === 'ACTIVATION' && v && (
+            <form action={formAction}>
+              {Object.entries(v).map(([k, val]) => (
+                <input key={k} type="hidden" name={k} value={val} />
+              ))}
+              <SubmitButton variant="secondary" size="sm" pendingText="Sending…">
+                Resend activation email
+              </SubmitButton>
+            </form>
+          )}
+          <button type="button" onClick={() => setEditing(true)} className="text-sm font-semibold text-primary hover:underline">
+            Use a different email
+          </button>
+        </div>
       </div>
     )
   }
@@ -60,11 +70,7 @@ export function LinkRequestForm({
   return (
     <form action={(fd) => { setEditing(false); formAction(fd) }} className="space-y-5" noValidate>
       {state?.error && <Notice tone="danger">{state.error}</Notice>}
-      <Field
-        label="College email"
-        htmlFor="email"
-        hint="Use your official college email — personal addresses (Gmail etc.) can’t be used."
-      >
+      <Field label="Email address" htmlFor="email" hint={purpose === 'ACTIVATION' ? 'Any personal email works — Gmail, Outlook, Yahoo and more.' : undefined}>
         <Input
           id="email"
           name="email"
@@ -73,11 +79,24 @@ export function LinkRequestForm({
           autoComplete="email"
           required
           defaultValue={state?.email}
-          placeholder="you@college.edu"
+          placeholder="Enter your email address"
         />
       </Field>
-      <SubmitButton size="lg" className="w-full" pendingText="Checking college records…">
-        {purpose === 'ACTIVATION' ? 'Verify My Email' : 'Send reset link'}
+      {purpose === 'ACTIVATION' && (
+        <>
+          <Field label="Full name" htmlFor="fullName">
+            <Input id="fullName" name="fullName" autoComplete="name" required maxLength={80} defaultValue={v?.fullName} placeholder="Your name" />
+          </Field>
+          <Field label="Mobile number" htmlFor="phone" hint="Used by the canteen if there’s a problem with your order.">
+            <Input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" required defaultValue={v?.phone} placeholder="10-digit mobile number" />
+          </Field>
+          <Field label={<>Department <span className="font-normal text-subtle">(optional)</span></>} htmlFor="department">
+            <Input id="department" name="department" maxLength={80} defaultValue={v?.department} placeholder="e.g. Computer Science" />
+          </Field>
+        </>
+      )}
+      <SubmitButton size="lg" className="w-full" pendingText="Sending…">
+        {purpose === 'ACTIVATION' ? 'Activate My Account' : 'Send reset link'}
       </SubmitButton>
     </form>
   )

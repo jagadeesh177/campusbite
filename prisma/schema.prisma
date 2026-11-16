@@ -79,6 +79,8 @@ model User {
   email              String     @unique
   name               String
   passwordHash       String?
+  /// Supabase Auth user id (self-registered students). Staff/canteen never have one.
+  supabaseUserId     String?    @unique
   role               Role
   status             UserStatus @default(PENDING_VERIFICATION)
   emailVerifiedAt    DateTime?
@@ -107,10 +109,10 @@ model StudentProfile {
   id                  String           @id @default(cuid())
   userId              String           @unique
   user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// College-issued student identifier (from the integration provider)
-  externalStudentId   String           @unique
-  /// Which integration provider verified this student (e.g. "mock", "college-api")
-  integrationSource   String
+  /// College-issued student identifier — only for legacy college-verified students
+  externalStudentId   String?          @unique
+  /// How this student was verified: "supabase" (self-registered email) or a legacy provider name
+  integrationSource   String           @default("supabase")
   department          String?
   programme           String?
   yearOfStudy         Int?

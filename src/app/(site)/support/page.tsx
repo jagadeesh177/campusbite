@@ -9,9 +9,9 @@ export default function SupportPage() {
       <section>
         <h2>I can&apos;t activate my account</h2>
         <p>
-          Use your official college email address. Activation links are only sent to students who are currently
-          enrolled according to college records. If you believe your enrollment is shown incorrectly, contact the
-          college administration office.
+          Check your Junk/Spam folder for the activation email. Each link works once and expires after 15 minutes,
+          and only one email is sent every 15 minutes — if your link has expired, request a new one from the
+          Create Account page. Already activated? Use &ldquo;Forgot password?&rdquo; on the sign-in page.
         </p>
       </section>
       <section>

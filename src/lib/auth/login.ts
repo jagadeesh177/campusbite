@@ -4,16 +4,14 @@ import type { Role } from '@prisma/client'
 import { db } from '@/lib/db'
 import { audit } from '@/lib/audit'
 import { AppError } from '@/lib/errors'
-import { getCollegeProvider } from '@/lib/college'
 import { enforceRateLimit } from './rate-limit'
 import { verifyPassword } from './password'
+import { authenticateStudent } from './student-auth'
 
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email('Enter a valid email address').max(254),
   password: z.string().min(1, 'Enter your password').max(200),
 })
-
-const ENROLLMENT_RECHECK_MS = 24 * 60 * 60 * 1000
 
 /**
  * Verifies credentials for ONE portal. The portal only narrows who may sign
@@ -31,13 +29,21 @@ export async function authenticate(
   await enforceRateLimit(`login:${email}`, 5, 15 * 60)
   if (ip) await enforceRateLimit(`login-ip:${ip}`, 40, 15 * 60)
 
-  const user = await db.user.findUnique({ where: { email }, include: { studentProfile: true } })
-  const valid = await verifyPassword(password, user?.passwordHash)
+  // Students sign in through Supabase Auth; staff and canteen use the administrator-managed password
+  let user
+  if (portal === 'STUDENT') {
+    const r = await authenticateStudent(email, password, (hash) => verifyPassword(password, hash))
+    user = r ? await db.user.findUnique({ where: { id: r.userId } }) : null
+  } else {
+    const candidate = await db.user.findUnique({ where: { email } })
+    user = candidate && (await verifyPassword(password, candidate.passwordHash)) ? candidate : null
+  }
 
   // Same message for unknown email, wrong password and wrong portal
-  if (!user || !valid || user.role !== portal) {
-    if (user && user.role !== 'STUDENT') {
-      await audit({ action: 'auth.login_failed', entityType: 'User', entityId: user.id, metadata: { portal } })
+  if (!user || user.role !== portal) {
+    const known = await db.user.findUnique({ where: { email }, select: { id: true, role: true } })
+    if (known && known.role !== 'STUDENT') {
+      await audit({ action: 'auth.login_failed', entityType: 'User', entityId: known.id, metadata: { portal } })
     }
     throw new AppError('UNAUTHORIZED', 'Incorrect email or password.')
   }
@@ -46,29 +52,6 @@ export async function authenticate(
   }
   if (user.status !== 'ACTIVE') {
     throw new AppError('FORBIDDEN', 'Please activate your account first.')
-  }
-
-  // Students: periodically re-confirm enrollment with the college system
-  if (user.role === 'STUDENT') {
-    const profile = user.studentProfile
-    if (!profile) throw new AppError('FORBIDDEN', 'Your student profile is incomplete. Please re-activate.')
-    const stale = !profile.enrollmentCheckedAt || Date.now() - profile.enrollmentCheckedAt.getTime() > ENROLLMENT_RECHECK_MS
-    if (stale) {
-      const status = await getCollegeProvider().checkEnrollmentStatus(profile.externalStudentId)
-      if (status !== 'UNKNOWN') {
-        await db.studentProfile.update({
-          where: { id: profile.id },
-          data: { enrollmentStatus: status, enrollmentCheckedAt: new Date() },
-        })
-      }
-      // UNKNOWN = college system unreachable: fall back to the last known status
-      const effective = status === 'UNKNOWN' ? profile.enrollmentStatus : status
-      if (effective !== 'ENROLLED') {
-        throw new AppError('FORBIDDEN', 'College records show you are not currently enrolled, so CampusBite access is paused.')
-      }
-    } else if (profile.enrollmentStatus !== 'ENROLLED') {
-      throw new AppError('FORBIDDEN', 'College records show you are not currently enrolled, so CampusBite access is paused.')
-    }
   }
 
   await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })

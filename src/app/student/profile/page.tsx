@@ -15,13 +15,13 @@ export default async function ProfilePage() {
   const user = await requirePortalUser('STUDENT')
   const profile = await db.studentProfile.findUniqueOrThrow({ where: { userId: user.id } })
 
+  const selfRegistered = profile.integrationSource === 'supabase'
   const fields = [
     ['Name', user.name],
-    ['College email', user.email],
-    ['Student ID', profile.externalStudentId],
+    ['Email', user.email],
+    ...(profile.externalStudentId ? [['Student ID', profile.externalStudentId]] : []),
     ['Department', profile.department ?? '—'],
-    ['Programme', profile.programme ?? '—'],
-    ['Year', profile.yearOfStudy ? `Year ${profile.yearOfStudy}` : '—'],
+    ...(selfRegistered ? [] : [['Programme', profile.programme ?? '—'], ['Year', profile.yearOfStudy ? `Year ${profile.yearOfStudy}` : '—']]),
   ]
 
   return (
@@ -30,9 +30,9 @@ export default async function ProfilePage() {
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <Card>
           <CardHeader
-            title={<span className="inline-flex items-center gap-2"><GraduationCap className="h-5 w-5 text-accent" /> College details</span>}
-            description="From college records — contact the college office to correct these."
-            action={<Badge tone={profile.enrollmentStatus === 'ENROLLED' ? 'success' : 'warning'} dot>{profile.enrollmentStatus === 'ENROLLED' ? 'Enrolled' : profile.enrollmentStatus}</Badge>}
+            title={<span className="inline-flex items-center gap-2"><GraduationCap className="h-5 w-5 text-accent" /> Account details</span>}
+            description={selfRegistered ? 'From your sign-up details.' : 'Contact the canteen office to correct these.'}
+            action={<Badge tone="success" dot>Email verified</Badge>}
           />
           <CardBody>
             <dl className="divide-y divide-line">

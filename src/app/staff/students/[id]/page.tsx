@@ -44,11 +44,10 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             <dl className="space-y-3 text-sm">
               {[
                 ['Student ID', p?.externalStudentId ?? '—'],
+                ['Mobile', p?.phone ?? '—'],
                 ['Department', p?.department ?? '—'],
-                ['Programme', p?.programme ?? '—'],
-                ['Year', p?.yearOfStudy ?? '—'],
-                ['Verified via', p?.integrationSource ?? '—'],
-                ['Enrollment checked', p?.enrollmentCheckedAt ? formatDateTime(p.enrollmentCheckedAt, env.timezone) : '—'],
+                ['Account type', p?.integrationSource === 'supabase' ? 'Self-registered (Supabase)' : 'Demo / legacy'],
+                ['Email verified', student.emailVerifiedAt ? formatDateTime(student.emailVerifiedAt, env.timezone) : 'Not yet'],
               ].map(([k, v]) => (
                 <div key={String(k)} className="flex justify-between gap-3">
                   <dt className="text-muted">{k}</dt>
@@ -57,7 +56,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
               ))}
             </dl>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Badge tone={p?.enrollmentStatus === 'ENROLLED' ? 'success' : 'warning'} dot>{p?.enrollmentStatus ?? 'UNKNOWN'}</Badge>
+              <Badge tone={student.status === 'PENDING_VERIFICATION' ? 'warning' : 'success'} dot>{student.status === 'PENDING_VERIFICATION' ? 'Awaiting email verification' : 'Email verified'}</Badge>
               <Badge tone={student.status === 'ACTIVE' ? 'success' : 'danger'} dot>{student.status === 'ACTIVE' ? 'Access active' : 'Access revoked'}</Badge>
             </div>
           </CardBody>

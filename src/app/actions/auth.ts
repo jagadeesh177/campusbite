@@ -8,7 +8,7 @@ import { audit } from '@/lib/audit'
 import { toActionError } from '@/lib/errors'
 import { getClientInfo } from '@/lib/request'
 import { authenticate } from '@/lib/auth/login'
-import { completeStudentToken, requestStudentLink } from '@/lib/auth/activation'
+import { completeStudentLink, registerStudent, requestStudentPasswordReset } from '@/lib/auth/student-auth'
 import { createSession, destroySession, getSessionUser, revokeAllSessions } from '@/lib/auth/session'
 import { hashPassword, passwordSchema, verifyPassword } from '@/lib/auth/password'
 import { PORTAL_HOME } from '@/lib/auth/guards'
@@ -48,35 +48,47 @@ export async function logoutAction() {
   redirect('/')
 }
 
-export type LinkRequestState = { error?: string; sent?: boolean; email?: string } | undefined
+export type LinkRequestState =
+  | { error?: string; sent?: boolean; email?: string; values?: Record<string, string> }
+  | undefined
 
-async function requestLink(purpose: 'ACTIVATION' | 'PASSWORD_RESET', formData: FormData): Promise<LinkRequestState> {
+/** Student registration with any personal email (Supabase Auth). Also used to resend the activation email. */
+export async function registerStudentAction(_prev: LinkRequestState, formData: FormData): Promise<LinkRequestState> {
+  const values = {
+    email: String(formData.get('email') ?? '').trim(),
+    fullName: String(formData.get('fullName') ?? '').trim(),
+    phone: String(formData.get('phone') ?? '').trim(),
+    department: String(formData.get('department') ?? '').trim(),
+  }
+  const { ip } = await getClientInfo()
+  try {
+    await registerStudent(values, ip)
+  } catch (e) {
+    return { error: toActionError(e).error, email: values.email, values }
+  }
+  // Same response whether or not the email already has an account (no enumeration)
+  return { sent: true, email: values.email.toLowerCase(), values }
+}
+
+export async function requestPasswordResetLinkAction(_prev: LinkRequestState, formData: FormData): Promise<LinkRequestState> {
   const email = String(formData.get('email') ?? '').trim().toLowerCase()
   const { ip } = await getClientInfo()
   try {
-    await requestStudentLink(purpose, email, ip)
+    await requestStudentPasswordReset(email, ip)
   } catch (e) {
     return { email, error: toActionError(e).error }
   }
-  // Same response whether or not the email is an eligible student (no enumeration)
   return { sent: true, email }
-}
-
-export async function requestActivationLinkAction(_prev: LinkRequestState, formData: FormData) {
-  return requestLink('ACTIVATION', formData)
-}
-
-export async function requestPasswordResetLinkAction(_prev: LinkRequestState, formData: FormData) {
-  return requestLink('PASSWORD_RESET', formData)
 }
 
 export async function setPasswordWithLinkAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const { ip } = await getClientInfo()
   let result
   try {
-    result = await completeStudentToken(
+    result = await completeStudentLink(
       {
-        token: String(formData.get('token') ?? ''),
+        tokenHash: String(formData.get('token') ?? ''),
+        type: String(formData.get('type') ?? ''),
         password: String(formData.get('password') ?? ''),
         confirmPassword: String(formData.get('confirmPassword') ?? ''),
       },

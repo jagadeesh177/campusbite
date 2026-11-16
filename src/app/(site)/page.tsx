@@ -48,7 +48,7 @@ const FEATURES = [
   { Icon: Smartphone, title: 'Online UPI payments', text: 'Pay with any UPI app. No cash, no change, no hassle.' },
   { Icon: Bell, title: 'Live order tracking', text: 'Watch your order move from accepted to ready in real time.' },
   { Icon: Clock, title: 'Easy pickup', text: 'Choose a pickup slot and collect with a one-time pickup code.' },
-  { Icon: GraduationCap, title: 'College-exclusive access', text: 'Only verified, currently-enrolled students can order.' },
+  { Icon: GraduationCap, title: 'Verified accounts', text: 'Sign up with any personal email — every account is verified by a one-time link.' },
 ]
 
 export default async function LandingPage() {
@@ -85,7 +85,7 @@ export default async function LandingPage() {
               </ButtonLink>
             </div>
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted">
-              <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-accent" /> Verified students only</span>
+              <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-accent" /> Verified accounts</span>
               <span className="inline-flex items-center gap-2"><Smartphone className="h-4 w-4 text-accent" /> UPI payments</span>
               <span className="inline-flex items-center gap-2"><Bell className="h-4 w-4 text-accent" /> Live updates</span>
             </div>

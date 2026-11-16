@@ -18,15 +18,6 @@ export const env = {
   get isProduction() {
     return process.env.NODE_ENV === 'production'
   },
-  get collegeProvider() {
-    return process.env.COLLEGE_PROVIDER ?? 'mock'
-  },
-  get collegeEmailDomains(): string[] {
-    return (process.env.COLLEGE_EMAIL_DOMAINS ?? '')
-      .split(',')
-      .map((d) => d.trim().toLowerCase())
-      .filter(Boolean)
-  },
   get paymentProvider(): 'razorpay' | 'simulator' {
     return process.env.PAYMENT_PROVIDER === 'razorpay' ? 'razorpay' : 'simulator'
   },
@@ -44,12 +35,6 @@ export const env = {
       keySecret: process.env.RAZORPAY_KEY_SECRET ?? '',
       webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
     }
-  },
-  get emailProvider() {
-    return process.env.EMAIL_PROVIDER ?? 'dev-outbox'
-  },
-  get devToolsEnabled() {
-    return flag('DEV_TOOLS_ENABLED')
   },
   get cronSecret() {
     return process.env.CRON_SECRET ?? ''

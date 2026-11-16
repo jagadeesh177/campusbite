@@ -17,16 +17,16 @@ export default function AboutPage() {
       <section>
         <h2>Who can use it</h2>
         <p>
-          CampusBite is exclusive to the college community. Students sign in with their official college email, and
-          eligibility is confirmed with the college&apos;s own records. Canteen and staff accounts are created by
-          authorised administrators.
+          Students create their own account with any personal email address (Gmail, Outlook, Yahoo and more) and
+          verify it through a one-time activation link. Canteen and staff accounts are created only by authorised
+          administrators.
         </p>
       </section>
       <section>
-        <h2>How your college stays in control</h2>
+        <h2>What we keep</h2>
         <p>
-          Enrollment always remains managed by the college. CampusBite only keeps the minimum needed to run your
-          orders: your name, college email, student ID and order history.
+          CampusBite only keeps the minimum needed to run your orders: your name, email, mobile number and order
+          history.
         </p>
       </section>
     </ProsePage>

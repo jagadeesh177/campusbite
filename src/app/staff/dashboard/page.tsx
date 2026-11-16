@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { AlertTriangle, Ban, CheckCircle2, Clock, GraduationCap, IndianRupee, ReceiptText } from 'lucide-react'
 import { requirePortalUser } from '@/lib/auth/guards'
 import { staffDashboard } from '@/lib/reports'
-import { getCollegeProvider } from '@/lib/college'
+import { supabaseConfig } from '@/lib/auth/supabase'
 import { isSimulatorActive } from '@/lib/payments/gateway'
 import { formatINR } from '@/lib/money'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
@@ -20,7 +20,7 @@ export default async function StaffDashboard({ searchParams }: { searchParams: P
   const user = await requirePortalUser('STAFF')
   const [{ denied }, data] = await Promise.all([searchParams, staffDashboard()])
   const k = data.kpis
-  const provider = getCollegeProvider()
+  const studentAuthReady = supabaseConfig().configured
   const canPayments = user.permissions.includes('PAYMENTS')
 
   return (
@@ -29,7 +29,7 @@ export default async function StaffDashboard({ searchParams }: { searchParams: P
       {denied && <Notice tone="warning" className="mb-4">You don&apos;t have permission for that section.</Notice>}
 
       <div className="mb-6 flex flex-wrap gap-2">
-        <Badge tone={provider.isMock ? 'warning' : 'success'} dot>College integration: {provider.displayName}</Badge>
+        <Badge tone={studentAuthReady ? 'success' : 'warning'} dot>Student sign-up: {studentAuthReady ? 'Supabase Auth' : 'Supabase not configured'}</Badge>
         <Badge tone={isSimulatorActive() ? 'warning' : 'success'} dot>
           Payments: {isSimulatorActive() ? 'Development simulator (no real money)' : 'Razorpay'}
         </Badge>

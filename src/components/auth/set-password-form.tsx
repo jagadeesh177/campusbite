@@ -23,7 +23,7 @@ function strength(p: string): { score: 0 | 1 | 2 | 3 | 4; label: string } {
   return { score, label: ['Too weak', 'Weak', 'Okay', 'Good', 'Strong'][score] }
 }
 
-export function SetPasswordForm({ token, purpose }: { token: string; purpose: 'ACTIVATION' | 'PASSWORD_RESET' }) {
+export function SetPasswordForm({ token, type, purpose }: { token: string; type: string; purpose: 'ACTIVATION' | 'PASSWORD_RESET' }) {
   const [state, action] = useActionState<FormState, FormData>(setPasswordWithLinkAction, undefined)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -36,8 +36,16 @@ export function SetPasswordForm({ token, purpose }: { token: string; purpose: 'A
 
   return (
     <form action={action} className="space-y-5" noValidate>
-      {state?.error && <Notice tone="danger">{state.error}</Notice>}
+      {state?.error && (
+        <Notice tone="danger">
+          {state.error}{' '}
+          <a href={purpose === 'ACTIVATION' ? '/activate' : '/forgot-password'} className="font-semibold underline">
+            Request a new link
+          </a>
+        </Notice>
+      )}
       <input type="hidden" name="token" value={token} />
+      <input type="hidden" name="type" value={type} />
 
       <Field label="New password" htmlFor="password">
         <div className="relative">
