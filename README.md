@@ -130,7 +130,7 @@ Only students use self-service activation; staff and canteen accounts are create
 
 1. **`/activate`** — the student enters their college email and clicks **Verify My Email**.
 2. The server checks the email domain (`COLLEGE_EMAIL_DOMAINS`) and asks the **college integration provider** (`src/lib/college/`) whether it is an eligible, enrolled student. The page always shows the same "check your inbox" message, so it never reveals who is a student.
-3. If eligible, a 256-bit random token is emailed as a link (`/activate/confirm?token=…`). Only its **SHA-256 hash** is stored (`StudentAccessToken` table), it **expires after 30 minutes**, a newer request **invalidates** older links, and requests are **rate-limited** (3/hour per email, 20/hour per IP).
+3. If eligible, a 256-bit random token is emailed as a link (`/activate/confirm?token=…`). Only its **SHA-256 hash** is stored (`StudentAccessToken` table), it **expires after 15 minutes**, and **only one link can be active per email**: while it is unused and unexpired, further requests send no new email (one email per 15 minutes). Requests are also **rate-limited** (5/hour per email, 20/hour per IP).
 4. **`/activate/confirm`** — **Create Your Password** with show/hide, strength meter and rules (min 8 characters, a letter and a number; checked again on the server).
 5. On submit the server re-checks eligibility, **consumes the token atomically** (single use, even under simultaneous submissions), creates/activates the account with the **STUDENT role assigned server-side**, links it to the college student ID, signs the student in and shows *"Your CampusBite account is ready!"*.
 

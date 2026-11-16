@@ -27,7 +27,8 @@ import { hashPassword, passwordSchema } from './password'
 //  tokens or passwords.
 // ===========================================================================
 
-export const LINK_TTL_MINUTES = 30
+/** Links last 15 minutes, and only one link per email can be active at a time (one email per 15 minutes). */
+export const LINK_TTL_MINUTES = 15
 
 export const emailSchema = z.string().trim().toLowerCase().email('Enter a valid email address').max(254)
 
@@ -80,7 +81,7 @@ export async function requestStudentLink(
   const email = parsed.data
 
   if (ip) await enforceRateLimit(`student-link-ip:${ip}`, 20, 60 * 60)
-  await enforceRateLimit(`student-link:${purpose}:${email}`, 3, 60 * 60)
+  await enforceRateLimit(`student-link:${purpose}:${email}`, 5, 60 * 60)
 
   // Personal addresses (gmail etc.) can never become student accounts
   if (!isAllowedCollegeEmail(email)) {
@@ -108,9 +109,20 @@ export async function requestStudentLink(
     return
   }
 
+  // Cooldown: while a link is still valid (unused, not expired), don't send another email.
+  // The response stays the same "check your inbox" message, so this reveals nothing.
+  const active = await db.studentAccessToken.findFirst({
+    where: { email, purpose, usedAt: null, invalidatedAt: null, expiresAt: { gt: new Date() } },
+    select: { id: true },
+  })
+  if (active) {
+    await auditRequest(purpose, email, 'cooldown_link_still_valid', true)
+    return
+  }
+
   const token = randomBytes(32).toString('base64url')
   const record = await db.$transaction(async (tx) => {
-    // A new request replaces any earlier unused link (prevents stale-link replay)
+    // Defensive: make sure no older link stays usable once a new one exists
     await tx.studentAccessToken.updateMany({
       where: { email, purpose, usedAt: null, invalidatedAt: null },
       data: { invalidatedAt: new Date() },

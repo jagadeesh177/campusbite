@@ -34,9 +34,12 @@ export function LinkRequestForm({
           {purpose === 'ACTIVATION'
             ? 'belongs to an eligible student who hasn’t activated yet, we’ve sent an activation link.'
             : 'has an active CampusBite student account, we’ve sent a password reset link.'}{' '}
-          It expires in 30 minutes and works once.
+          It expires in 15 minutes and works once.
         </p>
-        <p className="mt-3 text-sm text-muted">Don’t see it? Check your Junk/Spam folder.</p>
+        <p className="mt-3 text-sm text-muted">
+          Only one link is sent every 15 minutes — if you already requested one, use that email. Don’t see it? Check
+          your Junk/Spam folder.
+        </p>
         {devMailbox && (
           <Notice tone="info" title="Development mode" className="mt-4 text-left">
             Emails aren’t sent in development. Open the{' '}

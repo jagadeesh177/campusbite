@@ -49,8 +49,8 @@ describe('1. valid college student email', () => {
     expect(row.tokenHash).not.toContain(token)
     expect(JSON.stringify(row)).not.toContain(token)
     expect(row.externalStudentId).toBe('24CS031')
-    expect(row.expiresAt.getTime() - Date.now()).toBeGreaterThan(29 * 60_000)
-    expect(row.expiresAt.getTime() - Date.now()).toBeLessThanOrEqual(30 * 60_000)
+    expect(row.expiresAt.getTime() - Date.now()).toBeGreaterThan(14 * 60_000)
+    expect(row.expiresAt.getTime() - Date.now()).toBeLessThanOrEqual(15 * 60_000)
 
     const audit = await prisma.auditLog.findFirstOrThrow({ where: { action: 'student.activation_requested' } })
     expect(audit.metadata).toMatchObject({ outcome: 'link_sent' })
@@ -81,15 +81,29 @@ describe('3. invalid email format', () => {
 })
 
 describe('4. duplicate activation request', () => {
-  it('a newer link replaces the older one, and requests are rate-limited', async () => {
+  it('sends only one email per 15 minutes while the link is still valid', async () => {
     const first = await requestAndGetToken()
+    await requestStudentLink('ACTIVATION', 'neha.rao@college.edu', null) // within the cooldown
+    await requestStudentLink('ACTIVATION', 'neha.rao@college.edu', null)
+    expect(await mailsTo('neha.rao@college.edu')).toHaveLength(1) // no extra emails
+    expect((await inspectStudentToken(first)).valid).toBe(true) // the first link keeps working
+    const cooldowns = await prisma.auditLog.count({ where: { metadata: { path: ['outcome'], equals: 'cooldown_link_still_valid' } } })
+    expect(cooldowns).toBe(2)
+  })
+
+  it('allows a new link once the previous one has expired, and the old link stays dead', async () => {
+    const first = await requestAndGetToken()
+    await prisma.studentAccessToken.updateMany({ data: { expiresAt: new Date(Date.now() - 1000) } })
     const second = await requestAndGetToken()
-    expect(first).not.toBe(second)
-    expect(await inspectStudentToken(first)).toEqual({ valid: false, reason: 'used' })
+    expect(second).not.toBe(first)
+    expect((await mailsTo('neha.rao@college.edu')).length).toBe(2)
+    expect((await inspectStudentToken(first)).valid).toBe(false)
     expect((await inspectStudentToken(second)).valid).toBe(true)
     await expectAppError(completeStudentToken({ token: first, password: NEW_PW, confirmPassword: NEW_PW }, null), 'VALIDATION')
+  })
 
-    await requestStudentLink('ACTIVATION', 'neha.rao@college.edu', null) // 3rd within the hour
+  it('caps requests per email per hour', async () => {
+    for (let i = 0; i < 5; i++) await requestStudentLink('ACTIVATION', 'neha.rao@college.edu', null)
     await expectAppError(requestStudentLink('ACTIVATION', 'neha.rao@college.edu', null), 'RATE_LIMITED')
   })
 

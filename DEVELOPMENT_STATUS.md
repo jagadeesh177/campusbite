@@ -20,7 +20,7 @@ Legend: ✅ done & verified · 🟡 done, needs external setup · ⛔ not built 
 | Refunds | ✅ | Automatic on rejection/late payment; staff retry; double-refund protection |
 | Pickup tokens | ✅ | Single use, order-bound QR, concurrent-scan safe |
 | Realtime | ✅ | SSE + polling fallback, audience-filtered |
-| Tests | ✅ | 68 passing (unit + integration) |
+| Tests | ✅ | 70 passing (unit + integration) |
 | Deployment config | 🟡 | `vercel.json`, `vercel-build`, env template — not yet deployed |
 
 ## Requires external credentials or authorisation

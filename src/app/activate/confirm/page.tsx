@@ -4,7 +4,7 @@ import { Clock, LinkIcon, ShieldX } from 'lucide-react'
 import { AuthShell } from '@/components/auth/auth-shell'
 import { SetPasswordForm } from '@/components/auth/set-password-form'
 import { ButtonLink } from '@/components/ui/button'
-import { inspectStudentToken } from '@/lib/auth/activation'
+import { inspectStudentToken, LINK_TTL_MINUTES } from '@/lib/auth/activation'
 
 export const metadata: Metadata = {
   title: 'Create your password',
@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic'
 
 const PROBLEM = {
   invalid: { Icon: ShieldX, title: 'This link isn’t valid', text: 'It may be incomplete or mistyped. Request a new link and use the newest email.' },
-  expired: { Icon: Clock, title: 'This link has expired', text: 'Links work for 30 minutes. Request a new one — it only takes a moment.' },
+  expired: { Icon: Clock, title: 'This link has expired', text: `Links work for ${LINK_TTL_MINUTES} minutes. Request a new one — it only takes a moment.` },
   used: { Icon: LinkIcon, title: 'This link has already been used', text: 'Each link works once, and a newer request replaces older links. If your account is active, just sign in.' },
 } as const
 
@@ -51,7 +51,7 @@ export default async function ConfirmLinkPage({ searchParams }: { searchParams: 
       title={activation ? 'Create Your Password' : 'Choose a new password'}
       subtitle={
         <>
-          {activation ? 'Activating' : 'Resetting'} <strong className="text-ink">{result.email}</strong>. This link expires in 30 minutes.
+          {activation ? 'Activating' : 'Resetting'} <strong className="text-ink">{result.email}</strong>. This link expires in {LINK_TTL_MINUTES} minutes.
         </>
       }
     >
