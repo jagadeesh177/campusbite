@@ -8,7 +8,7 @@ export async function resetDb() {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE "RealtimeEvent", "Notification", "AuditLog", "OrderStatusHistory", "PickupToken",
       "Refund", "Payment", "WebhookEvent", "OrderItem", "Order", "FoodItem", "FoodImage", "FoodCategory",
-      "Session", "VerificationCode", "StudentAccessToken", "DevMailMessage", "RateLimitBucket", "StudentProfile",
+      "Session", "VerificationCode", "StudentAccessToken", "DevMailMessage", "RateLimitBucket", "UserProfile",
       "StaffProfile", "CanteenProfile", "User", "KitchenSettings" RESTART IDENTITY CASCADE`)
 }
 
@@ -46,17 +46,17 @@ export async function createMenu() {
 }
 
 let n = 0
-export async function createStudent(opts: { studentId?: string; email?: string; status?: 'ACTIVE' | 'DEACTIVATED' } = {}) {
+export async function createUser(opts: { studentId?: string; email?: string; status?: 'ACTIVE' | 'DEACTIVATED' } = {}) {
   const id = ++n
-  const email = opts.email ?? `student${id}@college.edu`
+  const email = opts.email ?? `user${id}@college.edu`
   const user = await prisma.user.create({
     data: {
       email,
-      name: `Student ${id}`,
-      role: 'STUDENT',
+      name: `User ${id}`,
+      role: 'USER',
       status: opts.status ?? 'ACTIVE',
       passwordHash: await pw(),
-      studentProfile: {
+      userProfile: {
         create: {
           externalStudentId: opts.studentId ?? `TEST${id}`,
           integrationSource: 'test',
@@ -66,7 +66,7 @@ export async function createStudent(opts: { studentId?: string; email?: string; 
       },
     },
   })
-  return { user, actor: { userId: user.id, role: 'STUDENT', name: user.name, permissions: [] } as Actor }
+  return { user, actor: { userId: user.id, role: 'USER', name: user.name, permissions: [] } as Actor }
 }
 
 export async function createCanteen(permissions: string[] = ['ORDERS', 'MENU', 'SETTINGS']) {
@@ -84,7 +84,7 @@ export async function createCanteen(permissions: string[] = ['ORDERS', 'MENU', '
   return { user, actor: { userId: user.id, role: 'CANTEEN', name: user.name, permissions } as Actor }
 }
 
-export async function createStaff(permissions: string[] = ['PAYMENTS', 'STUDENTS', 'REPORTS']) {
+export async function createStaff(permissions: string[] = ['PAYMENTS', 'USERS', 'REPORTS']) {
   const id = ++n
   const user = await prisma.user.create({
     data: {

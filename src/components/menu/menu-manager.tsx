@@ -227,7 +227,7 @@ function CategoryManager({ categories }: { categories: Category[] }) {
     <Card>
       <CardHeader
         title={<span className="inline-flex items-center gap-2"><Tags className="h-5 w-5 text-accent" /> Categories</span>}
-        description="Hidden categories disappear from the student menu."
+        description="Hidden categories disappear from the user menu."
         action={<Button variant="secondary" size="sm" onClick={() => setEditingId('new')}><Plus className="h-4 w-4" /> Add category</Button>}
       />
       <CardBody className="pt-4">

@@ -2,17 +2,17 @@
 
 import { useActionState, useState } from 'react'
 import { MailCheck } from 'lucide-react'
-import { registerStudentAction, requestPasswordResetLinkAction, type LinkRequestState } from '@/app/actions/auth'
+import { registerUserAction, requestPasswordResetLinkAction, type LinkRequestState } from '@/app/actions/auth'
 import { Field, Input } from '@/components/ui/form'
 import { Notice } from '@/components/ui/misc'
 import { SubmitButton } from '@/components/ui/client'
 
 /**
- * ACTIVATION: student registration with any personal email (name + mobile + optional department).
+ * ACTIVATION: user registration with any personal email (name + mobile + optional department).
  * PASSWORD_RESET: email only.
  */
 export function LinkRequestForm({ purpose }: { purpose: 'ACTIVATION' | 'PASSWORD_RESET' }) {
-  const action = purpose === 'ACTIVATION' ? registerStudentAction : requestPasswordResetLinkAction
+  const action = purpose === 'ACTIVATION' ? registerUserAction : requestPasswordResetLinkAction
   const [state, formAction] = useActionState<LinkRequestState, FormData>(action, undefined)
   const [editing, setEditing] = useState(false)
   const v = state?.values
@@ -34,7 +34,7 @@ export function LinkRequestForm({ purpose }: { purpose: 'ACTIVATION' | 'PASSWORD
             </>
           ) : (
             <>
-              If <strong className="text-ink">{state.email}</strong> has an active CampusBite student account, we’ve sent a
+              If <strong className="text-ink">{state.email}</strong> has an active CampusBite user account, we’ve sent a
               password reset link. It works once and expires in 15 minutes.
             </>
           )}
@@ -44,7 +44,7 @@ export function LinkRequestForm({ purpose }: { purpose: 'ACTIVATION' | 'PASSWORD
         </p>
         {purpose === 'ACTIVATION' && (
           <p className="mt-2 text-sm text-muted">
-            Already have an account? <a href="/login/student" className="font-semibold text-primary hover:underline">Sign in</a>{' '}
+            Already have an account? <a href="/login/user" className="font-semibold text-primary hover:underline">Sign in</a>{' '}
             or <a href="/forgot-password" className="font-semibold text-primary hover:underline">reset your password</a>.
           </p>
         )}

@@ -49,7 +49,7 @@ describe('cart pricing', () => {
 describe('order state machine', () => {
   it('only a verified payment (SYSTEM) confirms an order', () => {
     expect(canTransition('PAYMENT_PENDING', 'CONFIRMED', 'SYSTEM')).toBe(true)
-    for (const a of ['STUDENT', 'CANTEEN', 'STAFF'] as const) {
+    for (const a of ['USER', 'CANTEEN', 'STAFF'] as const) {
       expect(canTransition('PAYMENT_PENDING', 'CONFIRMED', a)).toBe(false)
     }
   })
@@ -59,20 +59,20 @@ describe('order state machine', () => {
     expect(canTransition('PREPARING', 'READY', 'CANTEEN')).toBe(true)
     expect(canTransition('READY', 'COLLECTED', 'CANTEEN')).toBe(true)
   })
-  it('blocks skipping steps and students driving the kitchen', () => {
+  it('blocks skipping steps and users driving the kitchen', () => {
     expect(canTransition('CONFIRMED', 'READY', 'CANTEEN')).toBe(false)
     expect(canTransition('ACCEPTED', 'COLLECTED', 'CANTEEN')).toBe(false)
-    expect(canTransition('CONFIRMED', 'ACCEPTED', 'STUDENT')).toBe(false)
-    expect(canTransition('READY', 'COLLECTED', 'STUDENT')).toBe(false)
+    expect(canTransition('CONFIRMED', 'ACCEPTED', 'USER')).toBe(false)
+    expect(canTransition('READY', 'COLLECTED', 'USER')).toBe(false)
   })
   it('terminal states have no exits', () => {
     expect(allowedTransitions('COLLECTED', 'STAFF')).toEqual([])
     expect(allowedTransitions('REFUNDED', 'STAFF')).toEqual([])
   })
-  it('students can cancel only before the kitchen accepts', () => {
-    expect(canTransition('PAYMENT_PENDING', 'CANCELLED', 'STUDENT')).toBe(true)
-    expect(canTransition('CONFIRMED', 'REFUND_PENDING', 'STUDENT')).toBe(true)
-    expect(canTransition('ACCEPTED', 'REFUND_PENDING', 'STUDENT')).toBe(false)
+  it('users can cancel only before the kitchen accepts', () => {
+    expect(canTransition('PAYMENT_PENDING', 'CANCELLED', 'USER')).toBe(true)
+    expect(canTransition('CONFIRMED', 'REFUND_PENDING', 'USER')).toBe(true)
+    expect(canTransition('ACCEPTED', 'REFUND_PENDING', 'USER')).toBe(false)
   })
 })
 

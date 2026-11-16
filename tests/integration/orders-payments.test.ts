@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createHmac } from 'node:crypto'
 import { createOrder } from '@/lib/orders/create-order'
-import { changeOrderStatus, cancelOrderAsStudent } from '@/lib/orders/transitions'
+import { changeOrderStatus, cancelOrderAsUser } from '@/lib/orders/transitions'
 import { completePickup, lookupPickup } from '@/lib/orders/pickup'
 import { expireStalePendingOrders } from '@/lib/orders/expire'
 import { confirmPayment } from '@/lib/payments/confirm'
@@ -10,7 +10,7 @@ import { processRefund } from '@/lib/payments/refunds'
 import { handleRazorpayWebhook } from '@/lib/payments/razorpay-handlers'
 import { buildPickupQrPayload } from '@/lib/orders/codes'
 import { AppError } from '@/lib/errors'
-import { createCanteen, createMenu, createStaff, createStudent, prisma, resetDb, setupKitchen, uuid } from '../helpers'
+import { createCanteen, createMenu, createStaff, createUser, prisma, resetDb, setupKitchen, uuid } from '../helpers'
 
 let menu: Awaited<ReturnType<typeof createMenu>>
 
@@ -20,7 +20,7 @@ beforeEach(async () => {
   menu = await createMenu()
 })
 
-async function paidOrder(actor: Awaited<ReturnType<typeof createStudent>>['actor']) {
+async function paidOrder(actor: Awaited<ReturnType<typeof createUser>>['actor']) {
   const co = await createOrder(actor, { items: [{ foodItemId: menu.samosa.id, quantity: 2 }], idempotencyKey: uuid() })
   const r = await simulatePayment(actor, co.paymentId, 'success')
   expect(r.outcome).toBe('confirmed')
@@ -33,7 +33,7 @@ async function expectAppError(p: Promise<unknown>, code: AppError['code']) {
 
 describe('order creation', () => {
   it('prices from the database, ignoring anything the client might send', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const co = await createOrder(actor, {
       items: [
         { foodItemId: menu.samosa.id, quantity: 2, price: 1 } as never,
@@ -49,8 +49,8 @@ describe('order creation', () => {
     expect(order.items.map((i) => i.nameSnapshot).sort()).toEqual(['Samosa', 'Veg Sandwich'])
   })
 
-  it('rejects sold-out items, non-students, and a paused kitchen', async () => {
-    const { actor } = await createStudent()
+  it('rejects sold-out items, non-users, and a paused kitchen', async () => {
+    const { actor } = await createUser()
     await expectAppError(
       createOrder(actor, { items: [{ foodItemId: menu.soldOut.id, quantity: 1 }], idempotencyKey: uuid() }),
       'UNAVAILABLE',
@@ -68,7 +68,7 @@ describe('order creation', () => {
   })
 
   it('is idempotent under simultaneous duplicate submissions', async () => {
-    const { actor, user } = await createStudent()
+    const { actor, user } = await createUser()
     const key = uuid()
     const results = await Promise.all(
       Array.from({ length: 6 }, () =>
@@ -80,10 +80,10 @@ describe('order creation', () => {
     expect(await prisma.payment.count()).toBe(1)
   })
 
-  it('handles many students ordering at the same moment', async () => {
-    const students = await Promise.all(Array.from({ length: 8 }, () => createStudent()))
+  it('handles many users ordering at the same moment', async () => {
+    const users = await Promise.all(Array.from({ length: 8 }, () => createUser()))
     const results = await Promise.allSettled(
-      students.map((s) =>
+      users.map((s) =>
         createOrder(s.actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() }),
       ),
     )
@@ -93,9 +93,9 @@ describe('order creation', () => {
 
   it('enforces kitchen capacity on confirmed orders', async () => {
     await prisma.kitchenSettings.update({ where: { id: 'default' }, data: { maxConcurrentOrders: 1 } })
-    const a = await createStudent()
+    const a = await createUser()
     await paidOrder(a.actor)
-    const b = await createStudent()
+    const b = await createUser()
     await expectAppError(
       createOrder(b.actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() }),
       'UNAVAILABLE',
@@ -105,7 +105,7 @@ describe('order creation', () => {
 
 describe('payment verification', () => {
   it('confirms the order and issues a pickup token', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const co = await paidOrder(actor)
     const order = await prisma.order.findUniqueOrThrow({ where: { id: co.orderId }, include: { pickupToken: true, payments: true } })
     expect(order.status).toBe('CONFIRMED')
@@ -115,7 +115,7 @@ describe('payment verification', () => {
   })
 
   it('is idempotent when the same payment is reported concurrently', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const co = await createOrder(actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() })
     const input = { gatewayOrderId: co.gatewayOrderId, gatewayPaymentId: 'pay_X', amountPaise: co.amountPaise, currency: 'INR', verifiedVia: 'webhook' as const }
     const outcomes = await Promise.all(Array.from({ length: 5 }, () => confirmPayment(input)))
@@ -126,22 +126,22 @@ describe('payment verification', () => {
   })
 
   it('rejects an amount or currency mismatch (fake confirmation)', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const co = await createOrder(actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() })
     const r = await confirmPayment({ gatewayOrderId: co.gatewayOrderId, gatewayPaymentId: 'pay_cheap', amountPaise: 100, currency: 'INR', verifiedVia: 'webhook' })
     expect(r).toMatchObject({ outcome: 'rejected', reason: 'amount_mismatch' })
     expect((await prisma.order.findUniqueOrThrow({ where: { id: co.orderId } })).status).toBe('PAYMENT_PENDING')
   })
 
-  it('a student cannot pay/confirm someone else\'s order', async () => {
-    const a = await createStudent()
-    const b = await createStudent()
+  it('a user cannot pay/confirm someone else\'s order', async () => {
+    const a = await createUser()
+    const b = await createUser()
     const co = await createOrder(a.actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() })
     await expectAppError(simulatePayment(b.actor, co.paymentId, 'success'), 'NOT_FOUND')
   })
 
   it('a failed payment leaves the order retryable', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const co = await createOrder(actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() })
     expect((await simulatePayment(actor, co.paymentId, 'failure')).outcome).toBe('failed')
     expect((await prisma.order.findUniqueOrThrow({ where: { id: co.orderId } })).status).toBe('PAYMENT_PENDING')
@@ -149,7 +149,7 @@ describe('payment verification', () => {
   })
 
   it('refunds a payment that arrives after the order expired', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const co = await createOrder(actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() })
     await prisma.order.update({ where: { id: co.orderId }, data: { createdAt: new Date(Date.now() - 60 * 60_000) } })
     expect(await expireStalePendingOrders()).toBe(1)
@@ -170,7 +170,7 @@ describe('razorpay webhook', () => {
   })
 
   it('processes a delivery once, even when retried', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const co = await createOrder(actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() })
     const body = JSON.stringify({
       event: 'payment.captured',
@@ -190,7 +190,7 @@ describe('razorpay webhook', () => {
 
 describe('status transitions & refunds', () => {
   it('canteen moves a paid order through the kitchen', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const { actor: kitchen } = await createCanteen()
     const co = await paidOrder(actor)
     for (const to of ['ACCEPTED', 'PREPARING', 'READY'] as const) {
@@ -199,7 +199,7 @@ describe('status transitions & refunds', () => {
   })
 
   it('blocks skipped steps, unauthorized roles and missing permissions', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const { actor: kitchen } = await createCanteen()
     const { actor: cashierOnlyMenu } = await createCanteen(['MENU'])
     const co = await paidOrder(actor)
@@ -211,14 +211,14 @@ describe('status transitions & refunds', () => {
   })
 
   it('unpaid orders cannot be prepared', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const { actor: kitchen } = await createCanteen()
     const co = await createOrder(actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() })
     await expectAppError(changeOrderStatus(kitchen, { orderId: co.orderId, to: 'ACCEPTED' }), 'CONFLICT')
   })
 
   it('only one of two simultaneous kitchen updates wins', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const k1 = await createCanteen()
     const k2 = await createCanteen()
     const co = await paidOrder(actor)
@@ -230,7 +230,7 @@ describe('status transitions & refunds', () => {
   })
 
   it('rejecting a paid order triggers an automatic refund', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const { actor: kitchen } = await createCanteen()
     const co = await paidOrder(actor)
     await expectAppError(changeOrderStatus(kitchen, { orderId: co.orderId, to: 'REFUND_PENDING' }), 'VALIDATION') // reason required
@@ -243,7 +243,7 @@ describe('status transitions & refunds', () => {
   })
 
   it('a refund is sent to the gateway at most once under concurrent clicks', async () => {
-    const { actor } = await createStudent()
+    const { actor } = await createUser()
     const { actor: staff } = await createStaff(['PAYMENTS'])
     const co = await paidOrder(actor)
     const payment = await prisma.payment.findFirstOrThrow({ where: { orderId: co.orderId } })
@@ -254,27 +254,27 @@ describe('status transitions & refunds', () => {
     expect(await prisma.auditLog.count({ where: { action: 'refund.processed' } })).toBe(1)
   })
 
-  it('students cancel unpaid orders, get refunds before acceptance, and cannot cancel later', async () => {
-    const s = await createStudent()
-    const other = await createStudent()
+  it('users cancel unpaid orders, get refunds before acceptance, and cannot cancel later', async () => {
+    const s = await createUser()
+    const other = await createUser()
     const { actor: kitchen } = await createCanteen()
 
     const unpaid = await createOrder(s.actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() })
-    await expectAppError(cancelOrderAsStudent(other.actor, unpaid.orderId), 'NOT_FOUND') // IDOR
-    expect((await cancelOrderAsStudent(s.actor, unpaid.orderId)).status).toBe('CANCELLED')
+    await expectAppError(cancelOrderAsUser(other.actor, unpaid.orderId), 'NOT_FOUND') // IDOR
+    expect((await cancelOrderAsUser(s.actor, unpaid.orderId)).status).toBe('CANCELLED')
 
     const paid = await paidOrder(s.actor)
-    expect((await cancelOrderAsStudent(s.actor, paid.orderId)).refund).toBe('processed')
+    expect((await cancelOrderAsUser(s.actor, paid.orderId)).refund).toBe('processed')
 
     const accepted = await paidOrder(s.actor)
     await changeOrderStatus(kitchen, { orderId: accepted.orderId, to: 'ACCEPTED' })
-    await expectAppError(cancelOrderAsStudent(s.actor, accepted.orderId), 'CONFLICT')
+    await expectAppError(cancelOrderAsUser(s.actor, accepted.orderId), 'CONFLICT')
   })
 })
 
 describe('pickup verification', () => {
   async function readyOrder() {
-    const s = await createStudent()
+    const s = await createUser()
     const k = await createCanteen()
     const co = await paidOrder(s.actor)
     for (const to of ['ACCEPTED', 'PREPARING', 'READY'] as const) await changeOrderStatus(k.actor, { orderId: co.orderId, to })
@@ -298,7 +298,7 @@ describe('pickup verification', () => {
   })
 
   it('refuses orders that are not ready, mismatched QR codes and other roles', async () => {
-    const s = await createStudent()
+    const s = await createUser()
     const { actor: kitchen } = await createCanteen()
     const { actor: menuOnly } = await createCanteen(['MENU'])
     const co = await paidOrder(s.actor)

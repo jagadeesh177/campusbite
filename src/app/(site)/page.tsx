@@ -77,7 +77,7 @@ export default async function LandingPage() {
               when it&apos;s ready.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <ButtonLink href="/login/student" size="xl" className="px-7">
+              <ButtonLink href="/login/user" size="xl" className="px-7">
                 Order Food <ArrowRight className="h-5 w-5" />
               </ButtonLink>
               <ButtonLink href="#how-it-works" variant="secondary" size="xl" className="px-7">
@@ -201,7 +201,7 @@ export default async function LandingPage() {
               CampusBite takes the queue out of your lunch break — and gives the kitchen a calm, organised way to work
               through the rush.
             </p>
-            <ButtonLink href="/login/student" size="lg" className="mt-8">
+            <ButtonLink href="/login/user" size="lg" className="mt-8">
               Start ordering <ArrowRight className="h-4 w-4" />
             </ButtonLink>
           </div>

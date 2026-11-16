@@ -78,8 +78,8 @@ export async function staffDashboard() {
   const since14 = new Date(todayStart.getTime() - 13 * 86_400_000)
   const since30 = new Date(todayStart.getTime() - 29 * 86_400_000)
 
-  const [students, ordersToday, revenueToday, pending, cancelledToday, completedToday, series, popular, pendingRefunds] = await Promise.all([
-    db.user.count({ where: { role: 'STUDENT', status: { not: 'PENDING_VERIFICATION' } } }),
+  const [users, ordersToday, revenueToday, pending, cancelledToday, completedToday, series, popular, pendingRefunds] = await Promise.all([
+    db.user.count({ where: { role: 'USER', status: { not: 'PENDING_VERIFICATION' } } }),
     db.order.count({ where: { createdAt: { gte: todayStart }, status: { not: 'PAYMENT_PENDING' } } }),
     db.order.aggregate({ where: { confirmedAt: { gte: todayStart }, status: { in: [...REVENUE_STATUSES] } }, _sum: { total: true } }),
     db.order.count({ where: { status: { in: ['CONFIRMED', 'ACCEPTED', 'PREPARING', 'READY'] } } }),
@@ -92,7 +92,7 @@ export async function staffDashboard() {
 
   return {
     kpis: {
-      students,
+      users,
       ordersToday,
       revenueTodayPaise: rupeesToPaise(revenueToday._sum.total ?? 0),
       pending,
@@ -126,19 +126,19 @@ export async function exportOrdersCsv(since: Date) {
     orderBy: { createdAt: 'asc' },
     include: {
       items: true,
-      user: { select: { name: true, email: true, studentProfile: { select: { externalStudentId: true } } } },
+      user: { select: { name: true, email: true, userProfile: { select: { externalStudentId: true } } } },
       payments: { orderBy: { createdAt: 'desc' }, take: 1 },
     },
     take: 20_000,
   })
   return toCsv(
-    ['order_number', 'created_at', 'status', 'student_name', 'student_id', 'email', 'items', 'subtotal_inr', 'fees_inr', 'total_inr', 'payment_status', 'payment_provider', 'payment_reference'],
+    ['order_number', 'created_at', 'status', 'user_name', 'user_id', 'email', 'items', 'subtotal_inr', 'fees_inr', 'total_inr', 'payment_status', 'payment_provider', 'payment_reference'],
     orders.map((o) => [
       o.orderNumber,
       o.createdAt,
       o.status,
       o.user.name,
-      o.user.studentProfile?.externalStudentId ?? '',
+      o.user.userProfile?.externalStudentId ?? '',
       o.user.email,
       o.items.map((i) => `${i.nameSnapshot} x${i.quantity}`).join('; '),
       o.subtotal.toFixed(2),

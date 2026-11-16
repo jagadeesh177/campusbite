@@ -6,7 +6,7 @@ import { AuthShell } from '@/components/auth/auth-shell'
 export const metadata: Metadata = { title: 'Login' }
 
 const PORTALS = [
-  { href: '/login/student', Icon: GraduationCap, title: 'Student', text: 'Order food and track your orders' },
+  { href: '/login/user', Icon: GraduationCap, title: 'User', text: 'Order food and track your orders' },
   { href: '/login/canteen', Icon: ChefHat, title: 'Canteen', text: 'Manage incoming orders and pickups' },
   { href: '/login/staff', Icon: ShieldCheck, title: 'Staff & Admin', text: 'Reports, payments and accounts' },
 ]

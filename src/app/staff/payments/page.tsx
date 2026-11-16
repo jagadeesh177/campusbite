@@ -71,7 +71,7 @@ async function Transactions({ status }: { status?: PaymentStatus }) {
             <tr className="border-b border-line text-left text-subtle">
               <th className="px-6 py-3 font-medium">Time</th>
               <th className="px-3 py-3 font-medium">Order</th>
-              <th className="px-3 py-3 font-medium">Student</th>
+              <th className="px-3 py-3 font-medium">User</th>
               <th className="px-3 py-3 font-medium">Payment</th>
               <th className="px-3 py-3 text-right font-medium">Amount</th>
               <th className="px-3 py-3 font-medium">Gateway reference</th>

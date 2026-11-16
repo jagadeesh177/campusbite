@@ -158,7 +158,7 @@ export async function createOrder(
   actor: Actor,
   input: z.input<typeof createOrderSchema>,
 ): Promise<CheckoutSession> {
-  if (actor.role !== 'STUDENT') throw new AppError('FORBIDDEN', 'Only students can place orders.')
+  if (actor.role !== 'USER') throw new AppError('FORBIDDEN', 'Only users can place orders.')
   const parsed = createOrderSchema.safeParse({ ...input, items: normalizeCartLines(input.items ?? []) })
   if (!parsed.success) throw new AppError('VALIDATION', parsed.error.issues[0]?.message ?? 'Invalid order')
   const { items: lines, idempotencyKey, pickupSlot } = parsed.data
@@ -180,7 +180,7 @@ export async function createOrder(
   const kitchen = kitchenStatus(settings)
   if (!kitchen.open) throw new AppError('UNAVAILABLE', kitchen.message ?? 'Ordering is closed right now.')
 
-  // Abuse guard: unpaid orders a student may have open at once
+  // Abuse guard: unpaid orders a user may have open at once
   const openUnpaid = await db.order.count({
     where: { userId: actor.userId, status: 'PAYMENT_PENDING' },
   })
@@ -266,7 +266,7 @@ export async function createOrder(
             order: created,
             from: null,
             to: 'PAYMENT_PENDING',
-            actorKind: 'STUDENT',
+            actorKind: 'USER',
             actorUserId: actor.userId,
           })
           return created
@@ -325,7 +325,7 @@ export async function createOrder(
   return checkoutFor(order.id)
 }
 
-/** Resume payment for one of the student's own unpaid orders. */
+/** Resume payment for one of the user's own unpaid orders. */
 export async function getCheckoutSession(actor: Actor, orderId: string): Promise<CheckoutSession> {
   const order = await db.order.findFirst({ where: { id: orderId, userId: actor.userId } })
   if (!order) throw new AppError('NOT_FOUND', 'Order not found.')

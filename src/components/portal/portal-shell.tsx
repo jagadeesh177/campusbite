@@ -37,7 +37,7 @@ const ICONS = {
   profile: User,
   pickup: QrCode,
   settings: Settings,
-  students: Users,
+  users: Users,
   canteen: Store,
   team: UserCog,
   food: ChefHat,
@@ -191,7 +191,7 @@ export function PortalShell({
         </div>
       </div>
 
-      {/* Mobile bottom tabs (student) */}
+      {/* Mobile bottom tabs (user) */}
       {bottomNav && (
         <nav
           className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"

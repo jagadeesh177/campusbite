@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 // every portal layout, page, server action and API route.
 
 const PORTALS: Record<string, string> = {
-  '/student': '/login/student',
+  '/user': '/login/user',
   '/canteen': '/login/canteen',
   '/staff': '/login/staff',
 }
@@ -24,5 +24,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/student/:path*', '/canteen/:path*', '/staff/:path*', '/account/:path*'],
+  matcher: ['/user/:path*', '/canteen/:path*', '/staff/:path*', '/account/:path*'],
 }

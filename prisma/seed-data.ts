@@ -55,7 +55,7 @@ export const FOODS: SeedFood[] = [
 // Demo account password policy-compliant passwords. Documented in README
 // (development only) — never shown on login pages.
 export const DEMO_PASSWORDS = {
-  student: 'Student@123',
+  user: 'Student@123', // demo password kept as-is so existing demo accounts still sign in
   staff: 'Staff@123',
   canteen: 'Canteen@123',
 } as const

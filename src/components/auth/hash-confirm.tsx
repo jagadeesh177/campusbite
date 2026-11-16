@@ -12,7 +12,7 @@ type Parsed =
  * Supabase's default email links verify the address on Supabase's side and then
  * redirect here with the session in the URL fragment (#access_token=…), which
  * only the browser can read. We pick it up, clear it from the address bar, and
- * let the student choose a password. (CampusBite's own templates use ?token_hash=
+ * let the user choose a password. (CampusBite's own templates use ?token_hash=
  * links instead — see README.)
  */
 export function HashConfirm({ invalid }: { invalid: React.ReactNode }) {

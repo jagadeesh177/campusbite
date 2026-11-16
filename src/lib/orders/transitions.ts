@@ -48,8 +48,8 @@ export async function changeOrderStatus(
   }
   if (to === 'COLLECTED') throw new AppError('VALIDATION', 'Verify the pickup token to mark an order collected.')
   if (to === 'CONFIRMED') throw new AppError('VALIDATION', 'Orders are confirmed only by a verified payment.')
-  if (to === 'REFUND_PENDING' && kind !== 'STUDENT' && !reason) {
-    throw new AppError('VALIDATION', 'Please give a reason — the student will see it.')
+  if (to === 'REFUND_PENDING' && kind !== 'USER' && !reason) {
+    throw new AppError('VALIDATION', 'Please give a reason — the user will see it.')
   }
 
   const result = await db.$transaction(async (tx) => {
@@ -57,8 +57,8 @@ export async function changeOrderStatus(
       where: { id: orderId },
       include: { payments: { where: { status: 'SUCCEEDED' }, take: 1 } },
     })
-    // Students only ever see their own orders (no IDOR): treat others as not found
-    if (!order || (kind === 'STUDENT' && order.userId !== actor.userId)) {
+    // Users only ever see their own orders (no IDOR): treat others as not found
+    if (!order || (kind === 'USER' && order.userId !== actor.userId)) {
       throw new AppError('NOT_FOUND', 'Order not found.')
     }
     const from = order.status as OrderStatusValue
@@ -82,7 +82,7 @@ export async function changeOrderStatus(
       data: {
         status: to,
         ...(tsField ? { [tsField]: new Date() } : {}),
-        ...(to === 'CANCELLED' || to === 'REFUND_PENDING' ? { cancelReason: reason ?? 'Cancelled by student' } : {}),
+        ...(to === 'CANCELLED' || to === 'REFUND_PENDING' ? { cancelReason: reason ?? 'Cancelled by user' } : {}),
       },
     })
     if (!moved.count) throw new AppError('CONFLICT', 'This order was just updated by someone else. Refresh and try again.')
@@ -101,7 +101,7 @@ export async function changeOrderStatus(
           orderId: order.id,
           paymentId: paid.id,
           amount: paid.amount,
-          reason: reason ?? 'Cancelled by student before preparation',
+          reason: reason ?? 'Cancelled by user before preparation',
           initiatedById: actor.userId,
         },
       })
@@ -117,7 +117,7 @@ export async function changeOrderStatus(
       note: reason ?? null,
     })
 
-    if (kind !== 'STUDENT') {
+    if (kind !== 'USER') {
       await audit(
         {
           actor,
@@ -146,9 +146,9 @@ export async function changeOrderStatus(
   return { status: to, refund }
 }
 
-/** Student self-service cancel: unpaid → cancelled, paid but not yet accepted → refund. */
-export async function cancelOrderAsStudent(actor: Actor, orderId: string) {
-  if (actor.role !== 'STUDENT') throw new AppError('FORBIDDEN', 'Not allowed.')
+/** User self-service cancel: unpaid → cancelled, paid but not yet accepted → refund. */
+export async function cancelOrderAsUser(actor: Actor, orderId: string) {
+  if (actor.role !== 'USER') throw new AppError('FORBIDDEN', 'Not allowed.')
   const order = await db.order.findFirst({ where: { id: orderId, userId: actor.userId } })
   if (!order) throw new AppError('NOT_FOUND', 'Order not found.')
   if (order.status === 'PAYMENT_PENDING') return changeOrderStatus(actor, { orderId, to: 'CANCELLED' })

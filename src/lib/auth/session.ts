@@ -11,7 +11,7 @@ export const SESSION_COOKIE =
   process.env.NODE_ENV === 'production' ? '__Host-cb_session' : 'cb_session'
 
 const TTL_MS: Record<Role, number> = {
-  STUDENT: 7 * 24 * 60 * 60 * 1000,
+  USER: 7 * 24 * 60 * 60 * 1000,
   STAFF: 12 * 60 * 60 * 1000,
   CANTEEN: 16 * 60 * 60 * 1000,
 }
@@ -24,7 +24,7 @@ export interface SessionUser {
   role: Role
   permissions: string[]
   mustChangePassword: boolean
-  student: {
+  profile: {
     externalStudentId: string | null
     enrollmentStatus: string
   } | null
@@ -60,7 +60,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const session = await db.session.findUnique({
     where: { tokenHash: hashToken(token) },
     include: {
-      user: { include: { studentProfile: true, staffProfile: true, canteenProfile: true } },
+      user: { include: { userProfile: true, staffProfile: true, canteenProfile: true } },
     },
   })
   if (!session || session.expiresAt < new Date()) return null
@@ -87,10 +87,10 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     role: u.role,
     permissions,
     mustChangePassword: u.mustChangePassword,
-    student: u.studentProfile
+    profile: u.userProfile
       ? {
-          externalStudentId: u.studentProfile.externalStudentId,
-          enrollmentStatus: u.studentProfile.enrollmentStatus,
+          externalStudentId: u.userProfile.externalStudentId,
+          enrollmentStatus: u.userProfile.enrollmentStatus,
         }
       : null,
   }

@@ -29,7 +29,7 @@ export async function simulatePayment(
 ): Promise<ConfirmOutcome | { outcome: 'failed' }> {
   if (!env.simulatorEnabled) throw new AppError('FORBIDDEN', 'The payment simulator is disabled.')
   const payment = await db.payment.findUnique({ where: { id: paymentId }, include: { order: true } })
-  // Ownership check: a student can only "pay" for their own order
+  // Ownership check: a user can only "pay" for their own order
   if (!payment || payment.order.userId !== actor.userId) throw new AppError('NOT_FOUND', 'Payment not found.')
   if (payment.provider !== 'SIMULATOR') throw new AppError('VALIDATION', 'This is not a simulated payment.')
 

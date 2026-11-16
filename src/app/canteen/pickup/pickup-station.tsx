@@ -115,7 +115,7 @@ export function PickupStation() {
                 </Button>
               ) : (
                 <Button size="xl" className="w-full" onClick={startCamera}>
-                  <Camera className="h-5 w-5" /> Scan student&apos;s QR code
+                  <Camera className="h-5 w-5" /> Scan user&apos;s QR code
                 </Button>
               )}
               <div className="my-5 flex items-center gap-3 text-xs font-medium text-subtle">
@@ -164,7 +164,7 @@ export function PickupStation() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-mono text-sm font-bold text-subtle">{preview.orderNumber}</div>
-                  <div className="mt-1 text-2xl font-bold">{preview.studentName}</div>
+                  <div className="mt-1 text-2xl font-bold">{preview.userName}</div>
                   <div className="text-sm text-muted">{preview.studentId ?? 'No student ID'}</div>
                 </div>
                 <OrderStatusBadge status={preview.status} />

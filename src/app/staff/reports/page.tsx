@@ -95,7 +95,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
-            <CardHeader title="Order volume by hour" description="When students order — plan staffing around peaks." />
+            <CardHeader title="Order volume by hour" description="When users order — plan staffing around peaks." />
             <CardBody>
               <BarChart label="Orders by hour of day" data={hourData} format={(v) => `${v} orders`} highlightLast={false} />
             </CardBody>

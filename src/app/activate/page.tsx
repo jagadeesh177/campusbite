@@ -4,7 +4,7 @@ import { AuthShell } from '@/components/auth/auth-shell'
 import { LinkRequestForm } from '@/components/auth/link-request-form'
 import { redirectIfSignedIn } from '@/components/auth/redirect-if-signed-in'
 
-export const metadata: Metadata = { title: 'Create your account' }
+export const metadata: Metadata = { title: 'User Registration' }
 export const dynamic = 'force-dynamic'
 
 export default async function ActivatePage() {
@@ -20,7 +20,7 @@ export default async function ActivatePage() {
     >
       <LinkRequestForm purpose="ACTIVATION" />
       <p className="mt-8 text-center text-sm text-muted">
-        Already have an account? <Link href="/login/student" className="font-medium text-primary hover:underline">Sign in</Link>
+        Already have an account? <Link href="/login/user" className="font-medium text-primary hover:underline">Sign in</Link>
       </p>
     </AuthShell>
   )

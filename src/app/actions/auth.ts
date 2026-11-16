@@ -8,7 +8,7 @@ import { audit } from '@/lib/audit'
 import { toActionError } from '@/lib/errors'
 import { getClientInfo } from '@/lib/request'
 import { authenticate } from '@/lib/auth/login'
-import { completeStudentLink, registerStudent, requestStudentPasswordReset } from '@/lib/auth/student-auth'
+import { completeUserLink, registerUser, requestUserPasswordReset } from '@/lib/auth/user-auth'
 import { createSession, destroySession, getSessionUser, revokeAllSessions } from '@/lib/auth/session'
 import { hashPassword, passwordSchema, verifyPassword } from '@/lib/auth/password'
 import { PORTAL_HOME } from '@/lib/auth/guards'
@@ -23,7 +23,7 @@ export type FormState =
     }
   | undefined
 
-const PORTALS = ['STUDENT', 'STAFF', 'CANTEEN'] as const
+const PORTALS = ['USER', 'STAFF', 'CANTEEN'] as const
 
 export async function loginAction(portal: Role, _prev: FormState, formData: FormData): Promise<FormState> {
   if (!PORTALS.includes(portal)) return { error: 'Unknown portal.' }
@@ -41,7 +41,7 @@ export async function loginAction(portal: Role, _prev: FormState, formData: Form
 
 export async function logoutAction() {
   const user = await getSessionUser()
-  if (user && user.role !== 'STUDENT') {
+  if (user && user.role !== 'USER') {
     await audit({ actor: { userId: user.id, role: user.role }, action: 'auth.logout', entityType: 'User', entityId: user.id })
   }
   await destroySession()
@@ -52,8 +52,8 @@ export type LinkRequestState =
   | { error?: string; sent?: boolean; email?: string; values?: Record<string, string> }
   | undefined
 
-/** Student registration with any personal email (Supabase Auth). Also used to resend the activation email. */
-export async function registerStudentAction(_prev: LinkRequestState, formData: FormData): Promise<LinkRequestState> {
+/** User registration with any personal email (Supabase Auth). Also used to resend the activation email. */
+export async function registerUserAction(_prev: LinkRequestState, formData: FormData): Promise<LinkRequestState> {
   const values = {
     email: String(formData.get('email') ?? '').trim(),
     fullName: String(formData.get('fullName') ?? '').trim(),
@@ -62,7 +62,7 @@ export async function registerStudentAction(_prev: LinkRequestState, formData: F
   }
   const { ip } = await getClientInfo()
   try {
-    await registerStudent(values, ip)
+    await registerUser(values, ip)
   } catch (e) {
     return { error: toActionError(e).error, email: values.email, values }
   }
@@ -74,7 +74,7 @@ export async function requestPasswordResetLinkAction(_prev: LinkRequestState, fo
   const email = String(formData.get('email') ?? '').trim().toLowerCase()
   const { ip } = await getClientInfo()
   try {
-    await requestStudentPasswordReset(email, ip)
+    await requestUserPasswordReset(email, ip)
   } catch (e) {
     return { email, error: toActionError(e).error }
   }
@@ -85,7 +85,7 @@ export async function setPasswordWithLinkAction(_prev: FormState, formData: Form
   const { ip } = await getClientInfo()
   let result
   try {
-    result = await completeStudentLink(
+    result = await completeUserLink(
       {
         tokenHash: String(formData.get('token') ?? '') || undefined,
         accessToken: String(formData.get('accessToken') ?? '') || undefined,
@@ -99,8 +99,8 @@ export async function setPasswordWithLinkAction(_prev: FormState, formData: Form
   } catch (e) {
     return { error: toActionError(e).error }
   }
-  await createSession(result.userId, 'STUDENT')
-  redirect(result.purpose === 'ACTIVATION' ? '/student/dashboard?activated=1' : '/student/dashboard?passwordReset=1')
+  await createSession(result.userId, 'USER')
+  redirect(result.purpose === 'ACTIVATION' ? '/user/dashboard?activated=1' : '/user/dashboard?passwordReset=1')
 }
 
 const changePasswordSchema = z

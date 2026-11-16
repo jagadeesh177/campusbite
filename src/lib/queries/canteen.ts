@@ -10,7 +10,7 @@ export interface BoardOrder {
   id: string
   orderNumber: string
   status: OrderStatusValue
-  studentName: string
+  userName: string
   studentId: string | null
   items: { name: string; quantity: number }[]
   totalPaise: number
@@ -37,7 +37,7 @@ export async function getKitchenBoard() {
     orderBy: { createdAt: 'asc' },
     include: {
       items: true,
-      user: { select: { name: true, studentProfile: { select: { externalStudentId: true } } } },
+      user: { select: { name: true, userProfile: { select: { externalStudentId: true } } } },
       payments: { where: { status: { in: ['SUCCEEDED', 'REFUNDED'] } }, take: 1 },
       pickupToken: true,
     },
@@ -48,8 +48,8 @@ export async function getKitchenBoard() {
     id: o.id,
     orderNumber: o.orderNumber,
     status: o.status,
-    studentName: o.user.name,
-    studentId: o.user.studentProfile?.externalStudentId ?? null,
+    userName: o.user.name,
+    studentId: o.user.userProfile?.externalStudentId ?? null,
     items: o.items.map((i) => ({ name: i.nameSnapshot, quantity: i.quantity })),
     totalPaise: rupeesToPaise(o.total),
     paymentVerified: o.payments.length > 0,

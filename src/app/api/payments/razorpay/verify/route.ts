@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Bad origin' }, { status: 403 })
   }
   try {
-    const actor = await requireActor('STUDENT')
+    const actor = await requireActor('USER')
     const body = await req.json().catch(() => ({}))
     const r = await verifyRazorpayCheckout(actor, body)
     if (r.outcome === 'rejected') return NextResponse.json({ error: 'Payment could not be verified.' }, { status: 400 })

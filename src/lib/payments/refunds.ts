@@ -109,7 +109,7 @@ export async function finalizeRefund(refundId: string, gatewayRefundId: string |
     await publishEvent(tx, {
       type: 'REFUND_UPDATED',
       orderId: refund.orderId,
-      studentUserId: refund.order.userId,
+      forUserId: refund.order.userId,
       forStaff: true,
       payload: { orderNumber: refund.order.orderNumber, status: 'PROCESSED' },
     })

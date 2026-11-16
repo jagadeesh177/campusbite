@@ -15,7 +15,7 @@ export default async function CanteenMenuPage() {
     <>
       <PageHeader
         title="Menu"
-        description="Flip the switch to mark an item sold out — students see it immediately."
+        description="Flip the switch to mark an item sold out — users see it immediately."
         action={user.permissions.includes('SETTINGS') ? <ButtonLink href="/canteen/settings" variant="secondary">Pause ordering</ButtonLink> : undefined}
       />
       <MenuManager data={data} />

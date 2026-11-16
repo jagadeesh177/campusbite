@@ -12,7 +12,7 @@ export interface PickupPreview {
   orderId: string
   orderNumber: string
   token: string
-  studentName: string
+  userName: string
   studentId: string | null
   status: OrderStatusValue
   totalPaise: number
@@ -37,14 +37,14 @@ async function loadByInput(raw: string) {
         include: {
           items: true,
           payments: { where: { status: 'SUCCEEDED' }, take: 1 },
-          user: { include: { studentProfile: true } },
+          user: { include: { userProfile: true } },
         },
       },
     },
   })
   if (!pickup) throw new AppError('NOT_FOUND', 'No order matches this token.')
   if (parsed.orderNumber && parsed.orderNumber !== pickup.order.orderNumber) {
-    throw new AppError('VALIDATION', 'This QR code does not match its order. Ask the student to show the code again.')
+    throw new AppError('VALIDATION', 'This QR code does not match its order. Ask the user to show the code again.')
   }
   return pickup
 }
@@ -65,8 +65,8 @@ export async function lookupPickup(actor: Actor, raw: string): Promise<PickupPre
     orderId: p.order.id,
     orderNumber: p.order.orderNumber,
     token: p.token,
-    studentName: p.order.user.name,
-    studentId: p.order.user.studentProfile?.externalStudentId ?? null,
+    userName: p.order.user.name,
+    studentId: p.order.user.userProfile?.externalStudentId ?? null,
     status: p.order.status,
     totalPaise: rupeesToPaise(p.order.total),
     items: p.order.items.map((i) => ({ name: i.nameSnapshot, quantity: i.quantity })),

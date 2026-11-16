@@ -18,7 +18,7 @@ const TYPES = ['email', 'recovery', 'signup', 'magiclink']
 
 /**
  * Landing page for the links Supabase Auth emails (activation and password reset).
- * The link is NOT consumed by opening this page — only when the student submits a
+ * The link is NOT consumed by opening this page — only when the user submits a
  * password — so email security scanners that pre-open links can't use it up.
  * Supabase enforces expiry and single use when it verifies the token.
  */
@@ -48,7 +48,7 @@ export default async function ConfirmLinkPage({
           </div>
         </div>
         <p className="mt-6 text-center text-sm text-muted">
-          <Link href="/login/student" className="font-medium text-primary hover:underline">Back to sign in</Link>
+          <Link href="/login/user" className="font-medium text-primary hover:underline">Back to sign in</Link>
         </p>
     </>
   )

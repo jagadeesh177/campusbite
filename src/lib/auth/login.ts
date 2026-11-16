@@ -6,7 +6,7 @@ import { audit } from '@/lib/audit'
 import { AppError } from '@/lib/errors'
 import { enforceRateLimit } from './rate-limit'
 import { verifyPassword } from './password'
-import { authenticateStudent } from './student-auth'
+import { authenticateUser } from './user-auth'
 
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email('Enter a valid email address').max(254),
@@ -29,10 +29,10 @@ export async function authenticate(
   await enforceRateLimit(`login:${email}`, 5, 15 * 60)
   if (ip) await enforceRateLimit(`login-ip:${ip}`, 40, 15 * 60)
 
-  // Students sign in through Supabase Auth; staff and canteen use the administrator-managed password
+  // Users sign in through Supabase Auth; staff and canteen use the administrator-managed password
   let user
-  if (portal === 'STUDENT') {
-    const r = await authenticateStudent(email, password, (hash) => verifyPassword(password, hash))
+  if (portal === 'USER') {
+    const r = await authenticateUser(email, password, (hash) => verifyPassword(password, hash))
     user = r ? await db.user.findUnique({ where: { id: r.userId } }) : null
   } else {
     const candidate = await db.user.findUnique({ where: { email } })
@@ -42,7 +42,7 @@ export async function authenticate(
   // Same message for unknown email, wrong password and wrong portal
   if (!user || user.role !== portal) {
     const known = await db.user.findUnique({ where: { email }, select: { id: true, role: true } })
-    if (known && known.role !== 'STUDENT') {
+    if (known && known.role !== 'USER') {
       await audit({ action: 'auth.login_failed', entityType: 'User', entityId: known.id, metadata: { portal } })
     }
     throw new AppError('UNAUTHORIZED', 'Incorrect email or password.')
@@ -55,7 +55,7 @@ export async function authenticate(
   }
 
   await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
-  if (user.role !== 'STUDENT') {
+  if (user.role !== 'USER') {
     await audit({ actor: { userId: user.id, role: user.role }, action: 'auth.login', entityType: 'User', entityId: user.id })
   }
   return { userId: user.id, role: user.role, mustChangePassword: user.mustChangePassword }

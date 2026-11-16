@@ -17,18 +17,18 @@ const accountPerm = (kind: 'CANTEEN' | 'STAFF'): 'CANTEEN_ACCOUNTS' | 'STAFF_ACC
   kind === 'CANTEEN' ? 'CANTEEN_ACCOUNTS' : 'STAFF_ACCOUNTS'
 
 // ---------------------------------------------------------------------------
-// Students — CampusBite access only; enrollment stays with the college
+// Users — enable or revoke CampusBite access (orders and payments are always kept)
 // ---------------------------------------------------------------------------
 
-export async function setStudentAccess(actor: Actor, userId: string, active: boolean) {
+export async function setUserAccess(actor: Actor, userId: string, active: boolean) {
   requireStaff(actor)
-  assertPermission(actor, 'STUDENTS')
+  assertPermission(actor, 'USERS')
   const user = await db.user.findUnique({ where: { id: userId } })
-  if (!user || user.role !== 'STUDENT') throw new AppError('NOT_FOUND', 'Student not found.')
-  if (user.status === 'PENDING_VERIFICATION') throw new AppError('CONFLICT', 'This student has not activated their account yet.')
+  if (!user || user.role !== 'USER') throw new AppError('NOT_FOUND', 'User not found.')
+  if (user.status === 'PENDING_VERIFICATION') throw new AppError('CONFLICT', 'This user has not activated their account yet.')
   await db.user.update({ where: { id: userId }, data: { status: active ? 'ACTIVE' : 'DEACTIVATED' } })
   if (!active) await revokeAllSessions(userId)
-  await audit({ actor, action: active ? 'student.access_restored' : 'student.access_revoked', entityType: 'User', entityId: userId, metadata: { email: user.email } })
+  await audit({ actor, action: active ? 'user.access_restored' : 'user.access_revoked', entityType: 'User', entityId: userId, metadata: { email: user.email } })
 }
 
 // ---------------------------------------------------------------------------

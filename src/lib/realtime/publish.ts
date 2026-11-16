@@ -21,7 +21,7 @@ export async function publishEvent(
   e: {
     type: RealtimeEventType
     orderId?: string | null
-    studentUserId?: string | null
+    forUserId?: string | null
     forCanteen?: boolean
     forStaff?: boolean
     payload?: Prisma.InputJsonObject
@@ -31,7 +31,7 @@ export async function publishEvent(
     data: {
       type: e.type,
       orderId: e.orderId ?? null,
-      studentUserId: e.studentUserId ?? null,
+      forUserId: e.forUserId ?? null,
       forCanteen: e.forCanteen ?? false,
       forStaff: e.forStaff ?? false,
       payload: e.payload ?? {},

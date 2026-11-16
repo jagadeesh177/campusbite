@@ -55,7 +55,7 @@ export async function recordStatusChange(
   await publishEvent(tx, {
     type: p.from === 'PAYMENT_PENDING' && p.to === 'CONFIRMED' ? 'ORDER_CREATED' : 'ORDER_STATUS_CHANGED',
     orderId: p.order.id,
-    studentUserId: p.order.userId,
+    forUserId: p.order.userId,
     // The kitchen doesn't care about unpaid carts
     forCanteen: p.to !== 'PAYMENT_PENDING' && !(p.from === 'PAYMENT_PENDING' && p.to === 'CANCELLED'),
     forStaff: true,

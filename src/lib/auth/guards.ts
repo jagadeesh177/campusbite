@@ -14,13 +14,13 @@ export interface Actor {
 }
 
 export const PORTAL_HOME: Record<Role, string> = {
-  STUDENT: '/student/dashboard',
+  USER: '/user/dashboard',
   STAFF: '/staff/dashboard',
   CANTEEN: '/canteen/dashboard',
 }
 
 export const PORTAL_LOGIN: Record<Role, string> = {
-  STUDENT: '/login/student',
+  USER: '/login/user',
   STAFF: '/login/staff',
   CANTEEN: '/login/canteen',
 }

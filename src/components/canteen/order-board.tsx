@@ -174,7 +174,7 @@ function OrderCard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="font-mono text-[13px] font-bold whitespace-nowrap text-ink">{o.orderNumber}</div>
-          <div className="truncate text-[15px] font-semibold text-ink">{o.studentName}</div>
+          <div className="truncate text-[15px] font-semibold text-ink">{o.userName}</div>
           <div className="text-xs text-subtle">{o.studentId ?? '—'}</div>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -246,9 +246,9 @@ function RejectButton({ order, onAct }: { order: BoardOrder; onAct: (o: BoardOrd
       triggerVariant="danger-ghost"
       triggerSize="icon-lg"
       title={`Reject ${order.orderNumber}?`}
-      description={`${order.studentName} has already paid ${formatINR(order.totalPaise)}. A full refund will be started automatically.`}
+      description={`${order.userName} has already paid ${formatINR(order.totalPaise)}. A full refund will be started automatically.`}
       requireReason
-      reasonLabel="Reason (shown to the student)"
+      reasonLabel="Reason (shown to the user)"
       reasonPlaceholder="e.g. Samosas sold out"
       confirmLabel="Reject & refund"
       confirmVariant="danger"
@@ -285,7 +285,7 @@ function CollectButton({ order, onCollected }: { order: BoardOrder; onCollected:
           }}
         >
           <h2 className="text-lg font-semibold">Hand over {order.orderNumber}</h2>
-          <p className="mt-1 text-sm text-muted">Ask {order.studentName} for their 6-character pickup code and type it below.</p>
+          <p className="mt-1 text-sm text-muted">Ask {order.userName} for their 6-character pickup code and type it below.</p>
           <input
             autoFocus
             value={token}

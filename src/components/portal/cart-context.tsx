@@ -131,7 +131,7 @@ const EMPTY: CartState = {
   quantityOf: () => 0,
 }
 
-/** Outside the student portal there is no cart; components get an inert one. */
+/** Outside the user portal there is no cart; components get an inert one. */
 export function useCart(): CartState {
   return useContext(CartContext) ?? EMPTY
 }

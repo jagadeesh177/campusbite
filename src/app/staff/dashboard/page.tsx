@@ -20,7 +20,7 @@ export default async function StaffDashboard({ searchParams }: { searchParams: P
   const user = await requirePortalUser('STAFF')
   const [{ denied }, data] = await Promise.all([searchParams, staffDashboard()])
   const k = data.kpis
-  const studentAuthReady = supabaseConfig().configured
+  const userAuthReady = supabaseConfig().configured
   const canPayments = user.permissions.includes('PAYMENTS')
 
   return (
@@ -29,7 +29,7 @@ export default async function StaffDashboard({ searchParams }: { searchParams: P
       {denied && <Notice tone="warning" className="mb-4">You don&apos;t have permission for that section.</Notice>}
 
       <div className="mb-6 flex flex-wrap gap-2">
-        <Badge tone={studentAuthReady ? 'success' : 'warning'} dot>Student sign-up: {studentAuthReady ? 'Supabase Auth' : 'Supabase not configured'}</Badge>
+        <Badge tone={userAuthReady ? 'success' : 'warning'} dot>User sign-up: {userAuthReady ? 'Supabase Auth' : 'Supabase not configured'}</Badge>
         <Badge tone={isSimulatorActive() ? 'warning' : 'success'} dot>
           Payments: {isSimulatorActive() ? 'Development simulator (no real money)' : 'Razorpay'}
         </Badge>
@@ -41,7 +41,7 @@ export default async function StaffDashboard({ searchParams }: { searchParams: P
         <StatCard label="In progress" value={k.pending} icon={Clock} tone="accent" />
         <StatCard label="Completed today" value={k.completedToday} icon={CheckCircle2} tone="success" />
         <StatCard label="Cancelled today" value={k.cancelledToday} icon={Ban} tone="danger" />
-        <StatCard label="Registered students" value={k.students} icon={GraduationCap} tone="primary" />
+        <StatCard label="Registered users" value={k.users} icon={GraduationCap} tone="primary" />
       </div>
 
       {canPayments && k.pendingRefunds > 0 && (

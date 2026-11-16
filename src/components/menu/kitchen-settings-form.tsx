@@ -40,7 +40,7 @@ export function KitchenSettingsForm({ values }: { values: KitchenSettingsValues 
       </Card>
 
       <Card>
-        <CardHeader title="Operating hours" description="Students can only order inside these hours (campus time)." />
+        <CardHeader title="Operating hours" description="Users can only order inside these hours (campus time)." />
         <CardBody className="grid gap-4 sm:grid-cols-2">
           <Field label="Opens" htmlFor="openingTime" error={fe?.openingTime}>
             <Input id="openingTime" name="openingTime" type="time" defaultValue={values.openingTime} required />
@@ -54,7 +54,7 @@ export function KitchenSettingsForm({ values }: { values: KitchenSettingsValues 
       <Card>
         <CardHeader title="Kitchen capacity & pickup" />
         <CardBody className="grid gap-4 sm:grid-cols-2">
-          <Field label="Estimated prep time (minutes)" htmlFor="defaultPrepMinutes" hint="Minimum time shown to students." error={fe?.defaultPrepMinutes}>
+          <Field label="Estimated prep time (minutes)" htmlFor="defaultPrepMinutes" hint="Minimum time shown to users." error={fe?.defaultPrepMinutes}>
             <Input id="defaultPrepMinutes" name="defaultPrepMinutes" type="number" min={1} max={120} defaultValue={values.defaultPrepMinutes} required />
           </Field>
           <Field label="Max orders in the kitchen at once" htmlFor="maxConcurrentOrders" hint="New orders are refused above this." error={fe?.maxConcurrentOrders}>

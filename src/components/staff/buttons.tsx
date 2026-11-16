@@ -3,11 +3,11 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import { processRefundAction, setStudentAccessAction } from '@/app/actions/staff'
+import { processRefundAction, setUserAccessAction } from '@/app/actions/staff'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog, Flash, useFlash } from '@/components/ui/client'
 
-export function StudentAccessButton({ userId, active, name }: { userId: string; active: boolean; name: string }) {
+export function UserAccessButton({ userId, active, name }: { userId: string; active: boolean; name: string }) {
   const router = useRouter()
   const [flash, setFlash] = useFlash()
   return (
@@ -19,13 +19,13 @@ export function StudentAccessButton({ userId, active, name }: { userId: string; 
         title={active ? `Revoke CampusBite access for ${name}?` : `Restore access for ${name}?`}
         description={
           active
-            ? 'They will be signed out and unable to order. This does not change their college enrollment.'
+            ? 'They will be signed out and unable to order. Their order history is kept.'
             : 'They will be able to sign in and order again.'
         }
         confirmLabel={active ? 'Revoke access' : 'Restore access'}
         confirmVariant={active ? 'danger' : 'primary'}
         onConfirm={async () => {
-          const r = await setStudentAccessAction(userId, !active)
+          const r = await setUserAccessAction(userId, !active)
           setFlash(r.ok ? { tone: 'success', text: r.message ?? 'Done' } : { tone: 'danger', text: r.error })
           router.refresh()
         }}

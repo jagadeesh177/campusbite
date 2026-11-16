@@ -17,7 +17,8 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 enum Role {
-  STUDENT
+  /// Students, teachers and all college employees who order food
+  USER
   STAFF
   CANTEEN
 }
@@ -79,7 +80,7 @@ model User {
   email              String     @unique
   name               String
   passwordHash       String?
-  /// Supabase Auth user id (self-registered students). Staff/canteen never have one.
+  /// Supabase Auth user id (self-registered users). Staff/canteen never have one.
   supabaseUserId     String?    @unique
   role               Role
   status             UserStatus @default(PENDING_VERIFICATION)
@@ -89,7 +90,7 @@ model User {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  studentProfile   StudentProfile?
+  userProfile      UserProfile?
   staffProfile     StaffProfile?
   canteenProfile   CanteenProfile?
   sessions         Session[]
@@ -103,22 +104,21 @@ model User {
   @@index([role, status])
 }
 
-/// Local CampusBite profile for a student. Created only when a student
-/// activates their account — we do NOT mirror the college's student database.
-model StudentProfile {
+/// Local CampusBite profile for a USER account (created at registration).
+model UserProfile {
   id                  String           @id @default(cuid())
   userId              String           @unique
   user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// College-issued student identifier — only for legacy college-verified students
   externalStudentId   String?          @unique
-  /// How this student was verified: "supabase" (self-registered email) or a legacy provider name
+  /// How this user was verified: "supabase" (self-registered email) or a legacy provider name
   integrationSource   String           @default("supabase")
   department          String?
   programme           String?
   yearOfStudy         Int?
   enrollmentStatus    EnrollmentStatus @default(UNKNOWN)
   enrollmentCheckedAt DateTime?
-  // Non-sensitive, student-editable preferences
+  // Non-sensitive, user-editable preferences
   phone               String?
   dietaryPreference   String?
   orderUpdatesEnabled Boolean          @default(true)
@@ -164,7 +164,7 @@ model Session {
   @@index([expiresAt])
 }
 
-/// Single-use links for student account activation and password reset.
+/// LEGACY (unused): single-use links from the old college-verified activation.
 /// Only the SHA-256 hash of the token is stored; the raw token exists only in
 /// the emailed link.
 model StudentAccessToken {
@@ -414,7 +414,7 @@ model OrderStatusHistory {
   toStatus    OrderStatus
   changedById String?
   changedBy   User?        @relation("StatusChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
-  /// STUDENT | CANTEEN | STAFF | SYSTEM
+  /// USER | CANTEEN | STAFF | SYSTEM
   actorRole   String
   note        String?
   createdAt   DateTime     @default(now())
@@ -443,19 +443,19 @@ model Notification {
 }
 
 /// Append-only event feed consumed by the SSE endpoint (/api/events).
-/// Each row is addressed to a student and/or the canteen and/or staff;
+/// Each row is addressed to a user and/or the canteen and/or staff;
 /// the endpoint only streams rows the signed-in user may see.
 model RealtimeEvent {
   id            BigInt   @id @default(autoincrement())
   type          String
   orderId       String?
-  studentUserId String?
+  forUserId     String?
   forCanteen    Boolean  @default(false)
   forStaff      Boolean  @default(false)
   payload       Json
   createdAt     DateTime @default(now())
 
-  @@index([studentUserId, id])
+  @@index([forUserId, id])
   @@index([createdAt])
 }
 

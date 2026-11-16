@@ -37,6 +37,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }]
   },
+  // The STUDENT role became USER: keep old links and bookmarks working
+  async redirects() {
+    return [
+      { source: '/login/student', destination: '/login/user', permanent: true },
+      { source: '/student', destination: '/user/dashboard', permanent: true },
+      { source: '/student/:path*', destination: '/user/:path*', permanent: true },
+      { source: '/staff/students', destination: '/staff/users', permanent: true },
+      { source: '/staff/students/:path*', destination: '/staff/users/:path*', permanent: true },
+    ]
+  },
 }
 
 export default nextConfig

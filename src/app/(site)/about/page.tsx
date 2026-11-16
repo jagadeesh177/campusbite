@@ -9,7 +9,7 @@ export default function AboutPage() {
       <section>
         <h2>Why we built it</h2>
         <p>
-          Lunch breaks are short and canteen queues are long. CampusBite lets students order from wherever they are on
+          Lunch breaks are short and canteen queues are long. CampusBite lets users order from wherever they are on
           campus, pay online, and walk up only when their food is ready — while giving the kitchen a calm, organised
           view of every order.
         </p>
@@ -17,7 +17,7 @@ export default function AboutPage() {
       <section>
         <h2>Who can use it</h2>
         <p>
-          Students create their own account with any personal email address (Gmail, Outlook, Yahoo and more) and
+          Users create their own account with any personal email address (Gmail, Outlook, Yahoo and more) and
           verify it through a one-time activation link. Canteen and staff accounts are created only by authorised
           administrators.
         </p>

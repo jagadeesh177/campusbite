@@ -34,7 +34,7 @@ export default async function CanteenDashboard({ searchParams }: { searchParams:
       />
       {denied && <Notice tone="warning" className="mb-4">You don&apos;t have permission for that page.</Notice>}
       {!kitchen.open && (
-        <Notice tone="warning" title="Students can’t place new orders right now" className="mb-4">
+        <Notice tone="warning" title="Users can’t place new orders right now" className="mb-4">
           {kitchen.message}
         </Notice>
       )}

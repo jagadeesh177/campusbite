@@ -8,7 +8,7 @@ export const CANTEEN_PERMISSIONS = {
 } as const
 
 export const STAFF_PERMISSIONS = {
-  STUDENTS: 'View & manage student access',
+  USERS: 'View & manage user access',
   CANTEEN_ACCOUNTS: 'Manage canteen operator accounts',
   STAFF_ACCOUNTS: 'Manage staff accounts',
   FOOD: 'Manage menu & categories',

@@ -3,15 +3,15 @@
 import { revalidatePath } from 'next/cache'
 import { toActionError, type ActionResult } from '@/lib/errors'
 import { requireActor } from '@/lib/auth/guards'
-import { createAccount, resetAccountPassword, setAccountStatus, setStudentAccess, updateAccountPermissions } from '@/lib/admin'
+import { createAccount, resetAccountPassword, setAccountStatus, setUserAccess, updateAccountPermissions } from '@/lib/admin'
 import { changeOrderStatus } from '@/lib/orders/transitions'
 import { processRefund } from '@/lib/payments/refunds'
 
-export async function setStudentAccessAction(userId: string, active: boolean): Promise<ActionResult> {
+export async function setUserAccessAction(userId: string, active: boolean): Promise<ActionResult> {
   try {
-    const actor = await requireActor('STAFF', 'STUDENTS')
-    await setStudentAccess(actor, userId, active)
-    revalidatePath('/staff/students')
+    const actor = await requireActor('STAFF', 'USERS')
+    await setUserAccess(actor, userId, active)
+    revalidatePath('/staff/users')
     return { ok: true, data: undefined, message: active ? 'Access restored.' : 'Access revoked and sessions signed out.' }
   } catch (e) {
     return toActionError(e)

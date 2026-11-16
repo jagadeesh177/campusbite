@@ -1,5 +1,5 @@
-// Fictional demo students created by the seed script (they sign in with the demo password).
-// CampusBite does not connect to any college system — students self-register with any email.
+// Fictional demo users created by the seed script (they sign in with the demo password).
+// CampusBite does not connect to any college system — users self-register with any email.
 export const DEMO_STUDENTS = [
   { studentId: '22CS101', email: 'aarav.sharma@college.edu', fullName: 'Aarav Sharma', department: 'Computer Science', programme: 'B.Tech', yearOfStudy: 3, enrollmentStatus: 'ENROLLED' },
   { studentId: '22CS114', email: 'diya.patel@college.edu', fullName: 'Diya Patel', department: 'Computer Science', programme: 'B.Tech', yearOfStudy: 3, enrollmentStatus: 'ENROLLED' },

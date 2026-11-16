@@ -36,7 +36,7 @@ async function main() {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE "RealtimeEvent", "Notification", "AuditLog", "OrderStatusHistory", "PickupToken",
       "Refund", "Payment", "WebhookEvent", "OrderItem", "Order", "FoodItem", "FoodImage", "FoodCategory",
-      "Session", "VerificationCode", "DevMailMessage", "RateLimitBucket", "StudentProfile",
+      "Session", "VerificationCode", "DevMailMessage", "RateLimitBucket", "UserProfile",
       "StaffProfile", "CanteenProfile", "User", "KitchenSettings" RESTART IDENTITY CASCADE`)
 
   await prisma.kitchenSettings.create({
@@ -82,26 +82,26 @@ async function main() {
   console.log(`Menu: ${CATEGORIES.length} categories, ${foods.length} items`)
 
   // ---- Accounts ----------------------------------------------------------
-  const [studentHash, staffHash, canteenHash] = await Promise.all([
-    bcrypt.hash(DEMO_PASSWORDS.student, 12),
+  const [userHash, staffHash, canteenHash] = await Promise.all([
+    bcrypt.hash(DEMO_PASSWORDS.user, 12),
     bcrypt.hash(DEMO_PASSWORDS.staff, 12),
     bcrypt.hash(DEMO_PASSWORDS.canteen, 12),
   ])
   const now = new Date()
 
-  // Fictional demo students with ready-made accounts (new students self-register with any email)
-  const students: User[] = []
+  // Fictional demo users with ready-made accounts (new users self-register with any email)
+  const users: User[] = []
   for (const s of DEMO_STUDENTS) {
-    students.push(
+    users.push(
       await prisma.user.create({
         data: {
           email: s.email,
           name: s.fullName,
-          role: 'STUDENT',
+          role: 'USER',
           status: 'ACTIVE',
-          passwordHash: studentHash,
+          passwordHash: userHash,
           emailVerifiedAt: now,
-          studentProfile: {
+          userProfile: {
             create: {
               externalStudentId: s.studentId,
               integrationSource: 'demo-seed',
@@ -146,7 +146,7 @@ async function main() {
       }),
     )
   }
-  console.log(`Accounts: ${students.length} students, ${STAFF_ACCOUNTS.length} staff, ${CANTEEN_ACCOUNTS.length} canteen`)
+  console.log(`Accounts: ${users.length} users, ${STAFF_ACCOUNTS.length} staff, ${CANTEEN_ACCOUNTS.length} canteen`)
 
   // ---- Order history (simulated payments, clearly marked) ----------------
   const available = foods.filter((f) => f.isAvailable)
@@ -163,10 +163,10 @@ async function main() {
   async function makeOrder(opts: {
     createdAt: Date
     status: OrderStatus
-    student?: (typeof students)[number]
+    user?: (typeof users)[number]
   }) {
     seq++
-    const student = opts.student ?? pick(students)
+    const user = opts.user ?? pick(users)
     const lineCount = between(1, 3)
     const chosen = new Map<string, { food: (typeof foods)[number]; qty: number }>()
     while (chosen.size < lineCount) {
@@ -197,7 +197,7 @@ async function main() {
     const order = await prisma.order.create({
       data: {
         orderNumber: uniq(() => generateOrderNumber(opts.createdAt), usedNumbers),
-        userId: student.id,
+        userId: user.id,
         status: opts.status,
         idempotencyKey: `seed-${seq}`,
         subtotal: paiseToDecimalString(subtotal),
@@ -229,11 +229,11 @@ async function main() {
           create: flow.map((s, i) => ({
             fromStatus: i === 0 ? null : flow[i - 1],
             toStatus: s,
-            actorRole: s === 'CONFIRMED' || s === 'CANCELLED' || s === 'REFUNDED' ? 'SYSTEM' : i === 0 ? 'STUDENT' : 'CANTEEN',
+            actorRole: s === 'CONFIRMED' || s === 'CANCELLED' || s === 'REFUNDED' ? 'SYSTEM' : i === 0 ? 'USER' : 'CANTEEN',
             changedById: ['ACCEPTED', 'PREPARING', 'READY', 'COLLECTED', 'REFUND_PENDING'].includes(s)
               ? pick(canteenUsers).id
               : i === 0
-                ? student.id
+                ? user.id
                 : null,
             createdAt: at([0, 1, 2, 5, 12, 18][Math.min(i, 5)]),
           })),
@@ -300,13 +300,13 @@ async function main() {
   // Today: some done, some live on the kitchen board
   const minutesAgo = (m: number) => new Date(now.getTime() - m * 60_000)
   for (let i = 0; i < 6; i++) await makeOrder({ createdAt: minutesAgo(between(60, 240)), status: 'COLLECTED' })
-  const [aarav, diya, rohan, ananya] = students
-  await makeOrder({ createdAt: minutesAgo(14), status: 'READY', student: aarav })
+  const [aarav, diya, rohan, ananya] = users
+  await makeOrder({ createdAt: minutesAgo(14), status: 'READY', user: aarav })
   await makeOrder({ createdAt: minutesAgo(11), status: 'READY' })
-  await makeOrder({ createdAt: minutesAgo(9), status: 'PREPARING', student: diya })
+  await makeOrder({ createdAt: minutesAgo(9), status: 'PREPARING', user: diya })
   await makeOrder({ createdAt: minutesAgo(8), status: 'PREPARING' })
-  await makeOrder({ createdAt: minutesAgo(5), status: 'ACCEPTED', student: rohan })
-  await makeOrder({ createdAt: minutesAgo(3), status: 'CONFIRMED', student: ananya })
+  await makeOrder({ createdAt: minutesAgo(5), status: 'ACCEPTED', user: rohan })
+  await makeOrder({ createdAt: minutesAgo(3), status: 'CONFIRMED', user: ananya })
   await makeOrder({ createdAt: minutesAgo(2), status: 'CONFIRMED' })
   await makeOrder({ createdAt: minutesAgo(40), status: 'REFUND_PENDING' })
 

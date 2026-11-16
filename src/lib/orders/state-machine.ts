@@ -4,18 +4,18 @@
 
 import type { OrderStatusValue } from '@/lib/order-status'
 
-export type ActorKind = 'STUDENT' | 'CANTEEN' | 'STAFF' | 'SYSTEM'
+export type ActorKind = 'USER' | 'CANTEEN' | 'STAFF' | 'SYSTEM'
 
 type Rules = Record<OrderStatusValue, Partial<Record<OrderStatusValue, ActorKind[]>>>
 
 const RULES: Rules = {
   PAYMENT_PENDING: {
     CONFIRMED: ['SYSTEM'], // only a verified payment confirms an order
-    CANCELLED: ['STUDENT', 'STAFF', 'SYSTEM'],
+    CANCELLED: ['USER', 'STAFF', 'SYSTEM'],
   },
   CONFIRMED: {
     ACCEPTED: ['CANTEEN'],
-    REFUND_PENDING: ['CANTEEN', 'STUDENT', 'STAFF', 'SYSTEM'],
+    REFUND_PENDING: ['CANTEEN', 'USER', 'STAFF', 'SYSTEM'],
   },
   ACCEPTED: {
     PREPARING: ['CANTEEN'],
@@ -54,7 +54,7 @@ export function allowedTransitions(from: OrderStatusValue, actor: ActorKind): Or
     .map(([to]) => to)
 }
 
-/** Statuses in which the student's money has been taken and not returned. */
+/** Statuses in which the user's money has been taken and not returned. */
 export function isPaidStatus(s: OrderStatusValue): boolean {
   return ['CONFIRMED', 'ACCEPTED', 'PREPARING', 'READY', 'COLLECTED', 'REFUND_PENDING'].includes(s)
 }

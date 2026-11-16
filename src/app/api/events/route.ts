@@ -14,7 +14,7 @@ function parseId(v: string | null): bigint | null {
 }
 
 /**
- * Realtime feed. Authorization is enforced in the WHERE clause: students only
+ * Realtime feed. Authorization is enforced in the WHERE clause: users only
  * receive events addressed to them; canteen/staff only receive events
  * flagged for their role.
  */
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
   if (!user) return new Response('Unauthorized', { status: 401 })
 
   const audience: Prisma.RealtimeEventWhereInput =
-    user.role === 'STUDENT' ? { studentUserId: user.id } : user.role === 'CANTEEN' ? { forCanteen: true } : { forStaff: true }
+    user.role === 'USER' ? { forUserId: user.id } : user.role === 'CANTEEN' ? { forCanteen: true } : { forStaff: true }
 
   const url = new URL(req.url)
   let since = parseId(req.headers.get('last-event-id')) ?? parseId(url.searchParams.get('since'))

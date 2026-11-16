@@ -9,7 +9,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   const p = (perm: string) => user.permissions.includes(perm)
   const nav: NavItem[] = [
     { href: '/staff/dashboard', label: 'Dashboard', icon: 'dashboard' },
-    ...(p('STUDENTS') ? [{ href: '/staff/students', label: 'Students', icon: 'students' } as const] : []),
+    ...(p('USERS') ? [{ href: '/staff/users', label: 'Users', icon: 'users' } as const] : []),
     ...(p('CANTEEN_ACCOUNTS') ? [{ href: '/staff/canteen', label: 'Canteen', icon: 'canteen' } as const] : []),
     ...(p('FOOD') ? [{ href: '/staff/food', label: 'Food & menu', icon: 'food' } as const] : []),
     ...(p('PAYMENTS') ? [{ href: '/staff/payments', label: 'Payments', icon: 'payments' } as const] : []),

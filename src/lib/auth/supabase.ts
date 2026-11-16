@@ -2,13 +2,13 @@ import 'server-only'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 /**
- * Supabase Auth is used for STUDENTS only: registration, email verification,
+ * Supabase Auth is used for USERS only: registration, email verification,
  * password management and login. Staff and canteen accounts keep the
  * administrator-managed login in src/lib/auth/login.ts.
  *
  * Only the project URL and the public (anon / publishable) key are needed — every
  * call is made on behalf of the user, never with the service-role key.
- * After Supabase confirms who the student is, CampusBite issues its own
+ * After Supabase confirms who the user is, CampusBite issues its own
  * HTTP-only session (src/lib/auth/session.ts), so the dashboards, ordering and
  * payments keep working unchanged.
  */

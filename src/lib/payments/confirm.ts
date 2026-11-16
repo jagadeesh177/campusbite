@@ -168,7 +168,7 @@ export async function confirmPayment(p: ConfirmPaymentInput): Promise<ConfirmOut
   return result
 }
 
-/** A failed attempt does not cancel the order — the student can retry until it expires. */
+/** A failed attempt does not cancel the order — the user can retry until it expires. */
 export async function markPaymentFailed(p: { gatewayOrderId: string; reason: string }) {
   const payment = await db.payment.findUnique({
     where: { gatewayOrderId: p.gatewayOrderId },
@@ -184,7 +184,7 @@ export async function markPaymentFailed(p: { gatewayOrderId: string; reason: str
     await publishEvent(tx, {
       type: 'PAYMENT_FAILED',
       orderId: payment.order.id,
-      studentUserId: payment.order.userId,
+      forUserId: payment.order.userId,
       forStaff: true,
       payload: { orderNumber: payment.order.orderNumber },
     })
