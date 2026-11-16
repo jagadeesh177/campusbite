@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { toActionError, type ActionResult } from '@/lib/errors'
@@ -8,6 +9,8 @@ import { requireActor } from '@/lib/auth/guards'
 import { createOrder, quoteCart, type CartQuote, type CheckoutSession } from '@/lib/orders/create-order'
 import { cancelOrderAsUser } from '@/lib/orders/transitions'
 import { simulatePayment } from '@/lib/payments/simulator'
+import { deleteOwnAccount } from '@/lib/account-deletion'
+import { destroySession } from '@/lib/auth/session'
 
 const linesSchema = z.array(z.object({ foodItemId: z.string().max(40), quantity: z.number().int().min(1).max(10) })).max(15)
 
@@ -103,4 +106,21 @@ export async function markNotificationsReadAction(): Promise<void> {
   const actor = await requireActor('USER')
   await db.notification.updateMany({ where: { userId: actor.userId, readAt: null }, data: { readAt: new Date() } })
   revalidatePath('/user/dashboard')
+}
+
+export type DeleteAccountState = { error?: string } | undefined
+
+/** Permanently deletes the signed-in user's account. Cannot be undone. */
+export async function deleteAccountAction(_prev: DeleteAccountState, formData: FormData): Promise<DeleteAccountState> {
+  try {
+    const actor = await requireActor('USER')
+    await deleteOwnAccount(actor, {
+      password: String(formData.get('password') ?? ''),
+      confirm: String(formData.get('confirm') ?? ''),
+    })
+  } catch (e) {
+    return { error: toActionError(e).error }
+  }
+  await destroySession()
+  redirect('/goodbye')
 }

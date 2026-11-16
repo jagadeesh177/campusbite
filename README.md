@@ -151,6 +151,15 @@ Users sign up with **any valid personal email** (Gmail, Outlook, Yahoo, …). Th
 
 **Limits and edge cases:** one email per address every 15 minutes (registration and reset separately), 10 emails per hour per network, plus Supabase's own limits. Duplicate emails get the same "check your inbox" response without an email (no account enumeration) and a hint to sign in or reset. Staff/canteen emails can never become users. If Supabase can't send, the user sees an error, nothing is activated, and they can retry immediately. All requests are written to the audit log — never passwords or tokens.
 
+### Delete account
+
+Users can permanently delete their account from **User Profile → Delete account** (password + typing `DELETE`). It cannot be undone:
+
+- Personal data (name, email, mobile, preferences, notifications, sessions) is erased and the Supabase login is deleted.
+- Accounts with no orders are removed completely. Accounts with past orders are anonymised (`Deleted user`, placeholder email) so orders and payments stay as anonymous records for the canteen's accounts; unpaid orders are cancelled.
+- Deletion is refused while an order is being prepared, is ready, or has a refund pending. Staff cannot restore a deleted account.
+- Requires the Supabase function in [`supabase/delete_own_user.sql`](supabase/delete_own_user.sql) (run once in the SQL Editor). It lets a signed-in user delete only their own login, so no service-role key is stored.
+
 ### Supabase + Resend configuration
 
 **Environment variables** (Vercel → Settings → Environment Variables, and `.env` locally):

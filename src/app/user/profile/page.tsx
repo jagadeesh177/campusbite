@@ -7,6 +7,7 @@ import { ButtonLink } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/ui/misc'
 import { ProfileForm } from './profile-form'
+import { DeleteAccount } from './delete-account'
 
 export const metadata: Metadata = { title: 'User Profile' }
 export const dynamic = 'force-dynamic'
@@ -62,6 +63,11 @@ export default async function ProfilePage() {
             <CardBody className="flex flex-wrap items-center justify-between gap-3">
               <span className="inline-flex items-center gap-2 text-sm font-medium"><Lock className="h-4.5 w-4.5 text-accent" /> Password</span>
               <ButtonLink href="/account/password" variant="secondary" size="sm">Change password</ButtonLink>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody>
+              <DeleteAccount />
             </CardBody>
           </Card>
         </div>

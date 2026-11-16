@@ -12,14 +12,14 @@ Legend: ✅ done & verified · 🟡 done, needs external setup · ⛔ not built 
 | Authentication & sessions | ✅ | 3 portals, DB sessions, bcrypt, rate limiting, forced password change for admin-created accounts |
 | Role-based access | ✅ | Enforced in layouts, pages, server actions, API routes and services |
 | User registration | ✅ | Any personal email via **Supabase Auth** (pending `USER` account → activation link → create password → dashboard), resend with rate limiting, password reset; 20 tests against a Supabase fake. **Real delivery verified** on 16 Nov 2026 through Supabase custom SMTP (Gmail, sender *CampusBite*): the *Activate Your CampusBite Account* email reached a Gmail inbox and its link opened *Create Your Password* on the live site; a second activation was sent to another Gmail account. Gmail SMTP allows ~500 emails/day — switch Supabase SMTP to Resend with a verified domain for larger volume |
-| User portal | ✅ | Dashboard, menu, cart, checkout, pickup slots, payment, live tracking, QR, history, profile |
+| User portal | ✅ | Dashboard, menu, cart, checkout, pickup slots, payment, live tracking, QR, history, profile, permanent account deletion |
 | Canteen portal | ✅ | Order board, accept/reject/prepare/ready, pickup verification (QR camera + manual), menu, settings |
 | Staff portal | ✅ | Dashboard, users, canteen accounts, staff accounts, food, payments/refunds, reports + CSV, audit log, settings |
 | Payments | 🟡 | Razorpay integration written (orders, checkout verification, webhooks, refunds) but **not yet run against real Razorpay** — needs merchant keys. Simulator verified |
 | Refunds | ✅ | Automatic on rejection/late payment; staff retry; double-refund protection |
 | Pickup tokens | ✅ | Single use, order-bound QR, concurrent-scan safe |
 | Realtime | ✅ | SSE + polling fallback, audience-filtered |
-| Tests | ✅ | 66 passing (unit + integration) |
+| Tests | ✅ | 72 passing (unit + integration) |
 | Deployment config | 🟡 | `vercel.json`, `vercel-build`, env template — not yet deployed |
 
 ## Requires external credentials or authorisation

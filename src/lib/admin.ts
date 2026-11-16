@@ -1,4 +1,5 @@
 import 'server-only'
+import { isDeletedAccountEmail } from '@/lib/account-deletion'
 import { z } from 'zod'
 import type { Role } from '@prisma/client'
 import { db } from '@/lib/db'
@@ -26,6 +27,7 @@ export async function setUserAccess(actor: Actor, userId: string, active: boolea
   const user = await db.user.findUnique({ where: { id: userId } })
   if (!user || user.role !== 'USER') throw new AppError('NOT_FOUND', 'User not found.')
   if (user.status === 'PENDING_VERIFICATION') throw new AppError('CONFLICT', 'This user has not activated their account yet.')
+  if (isDeletedAccountEmail(user.email)) throw new AppError('CONFLICT', 'This account was deleted by its owner and cannot be restored.')
   await db.user.update({ where: { id: userId }, data: { status: active ? 'ACTIVE' : 'DEACTIVATED' } })
   if (!active) await revokeAllSessions(userId)
   await audit({ actor, action: active ? 'user.access_restored' : 'user.access_revoked', entityType: 'User', entityId: userId, metadata: { email: user.email } })

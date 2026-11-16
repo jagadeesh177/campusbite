@@ -118,6 +118,12 @@ export function createFakeClient() {
         return { error: null }
       },
     },
+    /** public.delete_own_user(): deletes the signed-in user's own login */
+    async rpc(fn: string) {
+      if (fn !== 'delete_own_user' || !current) return { data: null, error: err('not_allowed', 401) }
+      fake.users.delete(current.email)
+      return { data: null, error: null }
+    },
   }
 }
 
