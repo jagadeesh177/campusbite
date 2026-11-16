@@ -2,16 +2,18 @@
 
 import Link from 'next/link'
 import { useActionState, useEffect, useRef, useState } from 'react'
-import { Check, Eye, EyeOff, X } from 'lucide-react'
+import { Check, Eye, EyeOff, KeyRound, X } from 'lucide-react'
 import { changePasswordInlineAction, type ChangePasswordState } from '@/app/actions/user'
 import { Field, Input } from '@/components/ui/form'
 import { Notice } from '@/components/ui/misc'
 import { SubmitButton } from '@/components/ui/client'
+import { Button } from '@/components/ui/button'
 import { PASSWORD_RULES } from '@/components/auth/set-password-form'
 import { cn } from '@/lib/cn'
 
-/** Profile → Account Security: change your own password without leaving the page. */
+/** Profile → Account Security: hidden until "Change Password" is clicked. */
 export function AccountSecurity() {
+  const [open, setOpen] = useState(false)
   const [state, action] = useActionState<ChangePasswordState, FormData>(changePasswordInlineAction, undefined)
   const [show, setShow] = useState(false)
   const [next, setNext] = useState('')
@@ -19,23 +21,47 @@ export function AccountSecurity() {
   const formRef = useRef<HTMLFormElement>(null)
   const fe = state?.fieldErrors
 
-  // Clear every field after a successful change
+  // After a successful change: clear every field and fold the form away
   useEffect(() => {
     if (state?.ok) {
       formRef.current?.reset()
       setNext('')
       setConfirm('')
       setShow(false)
+      setOpen(false)
     }
   }, [state?.ok, state?.nonce])
+
+  const close = () => {
+    formRef.current?.reset()
+    setNext('')
+    setConfirm('')
+    setShow(false)
+    setOpen(false)
+  }
 
   const type = show ? 'text' : 'password'
   const meetsRules = PASSWORD_RULES.every((r) => r.test(next))
   const matches = confirm.length > 0 && confirm === next
 
+  if (!open) {
+    return (
+      <div>
+        {state?.ok && <Notice tone="success" className="mb-4">{state.message}</Notice>}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="inline-flex min-w-0 items-center gap-2 text-[15px]">
+            <KeyRound className="h-4.5 w-4.5 text-muted" aria-hidden />
+            <span className="text-muted">Password</span>
+            <span className="font-medium tracking-widest text-ink" aria-hidden>••••••••</span>
+          </span>
+          <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>Change Password</Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <form ref={formRef} action={action} className="space-y-4" noValidate>
-      {state?.ok && <Notice tone="success">{state.message}</Notice>}
       {state?.error && !state.ok && <Notice tone="danger">{state.error}</Notice>}
 
       <Field label="Current password" htmlFor="currentPassword" error={fe?.currentPassword}>
@@ -87,9 +113,12 @@ export function AccountSecurity() {
       </button>
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-        <SubmitButton pendingText="Changing…" disabled={!meetsRules || !matches}>
-          Change password
-        </SubmitButton>
+        <div className="flex flex-wrap gap-2">
+          <SubmitButton pendingText="Saving…" disabled={!meetsRules || !matches}>
+            Save New Password
+          </SubmitButton>
+          <Button variant="secondary" onClick={close}>Cancel</Button>
+        </div>
         <Link href="/forgot-password" className="text-sm font-semibold text-primary hover:underline">
           Forgot password?
         </Link>

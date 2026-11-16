@@ -79,7 +79,7 @@ const profileSchema = z.object({
     .optional()
     .transform((v) => v || null),
   dietaryPreference: z.enum(['NO_PREFERENCE', 'VEG', 'NON_VEG']),
-  orderUpdatesEnabled: z.boolean(),
+  orderUpdatesEnabled: z.boolean().optional(),
 })
 
 export async function updateProfileAction(
@@ -93,7 +93,8 @@ export async function updateProfileAction(
       department: String(formData.get('department') ?? ''),
       phone: formData.get('phone') ?? '',
       dietaryPreference: formData.get('dietaryPreference'),
-      orderUpdatesEnabled: formData.get('orderUpdatesEnabled') === 'on',
+      // Only changed when the form includes the switch; otherwise the saved value is kept
+      orderUpdatesEnabled: formData.has('orderUpdatesEnabledField') ? formData.get('orderUpdatesEnabled') === 'on' : undefined,
     })
     if (!parsed.success) {
       return { ok: false, error: 'Please check the highlighted fields.', fieldErrors: parsed.error.flatten().fieldErrors }
