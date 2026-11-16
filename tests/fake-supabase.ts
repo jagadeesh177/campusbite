@@ -13,6 +13,7 @@ export const fake = {
   users: new Map<string, FakeUser>(),
   tokens: new Map<string, FakeToken>(),
   sent: [] as SentEmail[],
+  sessions: new Map<string, { email: string; refresh: string; revoked: boolean }>(),
   failNextSend: false,
   configured: true,
   ttlMs: 15 * 60_000,
@@ -20,8 +21,20 @@ export const fake = {
     this.users.clear()
     this.tokens.clear()
     this.sent = []
+    this.sessions.clear()
     this.failNextSend = false
     this.configured = true
+  },
+  /** What Supabase's default link does: verify on Supabase's side, then hand the browser a session. */
+  clickDefaultLink(tokenHash: string) {
+    const t = this.tokens.get(tokenHash)
+    if (!t || t.used || t.expiresAt < Date.now()) return null
+    t.used = true
+    this.users.get(t.email)!.confirmed = true
+    const access = `at_${randomBytes(16).toString('hex')}`
+    const refresh = `rt_${randomBytes(8).toString('hex')}`
+    this.sessions.set(access, { email: t.email, refresh, revoked: false })
+    return { accessToken: access, refreshToken: refresh, type: t.kind === 'recovery' ? 'recovery' : 'signup' }
   },
   lastTo(email: string) {
     return [...this.sent].reverse().find((m) => m.to === email)
@@ -91,7 +104,16 @@ export function createFakeClient() {
         current = u
         return { data: { user: publicUser(u), session: { access_token: 'x' } }, error: null }
       },
+      async setSession({ access_token, refresh_token }: { access_token: string; refresh_token: string }) {
+        const sess = fake.sessions.get(access_token)
+        if (!sess || sess.revoked || sess.refresh !== refresh_token) {
+          return { data: { user: null, session: null }, error: err('session_not_found', 403) }
+        }
+        current = fake.users.get(sess.email)!
+        return { data: { user: publicUser(current), session: { access_token } }, error: null }
+      },
       async signOut() {
+        if (current) for (const sess of fake.sessions.values()) if (sess.email === current.email) sess.revoked = true
         current = null
         return { error: null }
       },

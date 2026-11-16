@@ -123,6 +123,17 @@ describe('activation link → password → dashboard', () => {
     expect(await prisma.user.count({ where: { email: 'asha@gmail.com' } })).toBe(1)
   })
 
+  it('also works with Supabase default email links (session in the URL fragment), once', async () => {
+    await reg('asha@gmail.com')
+    const sess = fake.clickDefaultLink(fake.lastTo('asha@gmail.com')!.tokenHash)!
+    const input = { accessToken: sess.accessToken, refreshToken: sess.refreshToken, type: sess.type, password: PW, confirmPassword: PW }
+    const r = await completeStudentLink(input, null)
+    expect(r.purpose).toBe('ACTIVATION')
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: r.userId } })).status).toBe('ACTIVE')
+    await expectAppError(completeStudentLink(input, null), 'VALIDATION', /already been used/) // session revoked
+    await expectAppError(completeStudentLink({ ...input, accessToken: 'x'.repeat(40) }, null), 'VALIDATION')
+  })
+
   it('expired and invalid links are refused and the account stays pending', async () => {
     await reg('asha@gmail.com')
     const token = fake.lastTo('asha@gmail.com')!.tokenHash

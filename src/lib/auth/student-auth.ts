@@ -37,17 +37,22 @@ export const registrationSchema = z.object({
 
 export const emailOnlySchema = z.object({ email })
 
-const LINK_TYPES = ['email', 'recovery', 'signup', 'magiclink'] as const
+const LINK_TYPES = ['email', 'recovery', 'signup', 'magiclink', 'invite'] as const
 export type LinkType = (typeof LINK_TYPES)[number]
 
 export const completeLinkSchema = z
   .object({
-    tokenHash: z.string().regex(/^[A-Za-z0-9_-]{8,200}$/, 'This link is invalid.'),
+    // CampusBite email templates: ?token_hash=…&type=…  (verified here, single use)
+    tokenHash: z.string().regex(/^[A-Za-z0-9_-]{8,200}$/, 'This link is invalid.').optional(),
+    // Supabase default templates: Supabase already verified the link and handed over a session
+    accessToken: z.string().min(20).max(4096).optional(),
+    refreshToken: z.string().min(4).max(512).optional(),
     type: z.enum(LINK_TYPES, { message: 'This link is invalid.' }),
     password: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((v) => v.password === v.confirmPassword, { message: 'Passwords do not match', path: ['confirmPassword'] })
+  .refine((v) => Boolean(v.tokenHash) || Boolean(v.accessToken && v.refreshToken), { message: 'This link is invalid.', path: ['tokenHash'] })
 
 function requireSupabase() {
   if (!supabaseConfig().configured) {
@@ -176,17 +181,19 @@ export async function requestStudentPasswordReset(rawEmail: string, ip: string |
  * scanners that pre-open links can't burn it.
  */
 export async function completeStudentLink(
-  input: { tokenHash: string; type: string; password: string; confirmPassword: string },
+  input: { tokenHash?: string; accessToken?: string; refreshToken?: string; type: string; password: string; confirmPassword: string },
   ip: string | null,
 ): Promise<{ userId: string; purpose: 'ACTIVATION' | 'PASSWORD_RESET' }> {
   const parsed = completeLinkSchema.safeParse(input)
   if (!parsed.success) throw new AppError('VALIDATION', parsed.error.issues[0]?.message ?? 'Check the form and try again.')
-  const { tokenHash, type, password } = parsed.data
+  const { tokenHash, accessToken, refreshToken, type, password } = parsed.data
   requireSupabase()
   if (ip) await enforceRateLimit(`student-link-complete:${ip}`, 20, 60 * 60)
 
   const client = createSupabaseAuthClient()
-  const { data, error } = await client.auth.verifyOtp({ token_hash: tokenHash, type })
+  const { data, error } = tokenHash
+    ? await client.auth.verifyOtp({ token_hash: tokenHash, type: type === 'invite' ? 'invite' : type })
+    : await client.auth.setSession({ access_token: accessToken!, refresh_token: refreshToken! })
   if (error || !data.user?.email) {
     await audit({ action: 'student.link_rejected', entityType: 'User', metadata: { reason: error?.code ?? 'no_user' } })
     throw new AppError('VALIDATION', 'This link has expired or has already been used. Please request a new one.')

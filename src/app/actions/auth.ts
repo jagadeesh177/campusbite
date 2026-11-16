@@ -87,7 +87,9 @@ export async function setPasswordWithLinkAction(_prev: FormState, formData: Form
   try {
     result = await completeStudentLink(
       {
-        tokenHash: String(formData.get('token') ?? ''),
+        tokenHash: String(formData.get('token') ?? '') || undefined,
+        accessToken: String(formData.get('accessToken') ?? '') || undefined,
+        refreshToken: String(formData.get('refreshToken') ?? '') || undefined,
         type: String(formData.get('type') ?? ''),
         password: String(formData.get('password') ?? ''),
         confirmPassword: String(formData.get('confirmPassword') ?? ''),

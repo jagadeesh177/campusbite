@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ShieldX } from 'lucide-react'
 import { AuthShell } from '@/components/auth/auth-shell'
 import { SetPasswordForm } from '@/components/auth/set-password-form'
+import { HashConfirm } from '@/components/auth/hash-confirm'
 import { ButtonLink } from '@/components/ui/button'
 
 export const metadata: Metadata = {
@@ -29,9 +30,8 @@ export default async function ConfirmLinkPage({
   const { token_hash, type, error_description } = await searchParams
   const ok = token_hash && /^[A-Za-z0-9_-]{8,200}$/.test(token_hash) && type && TYPES.includes(type)
 
-  if (!ok) {
-    return (
-      <AuthShell title="This link isn’t valid">
+  const invalid = (
+    <>
         <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-danger-soft text-danger-ink">
             <ShieldX className="h-7 w-7" aria-hidden />
@@ -50,8 +50,20 @@ export default async function ConfirmLinkPage({
         <p className="mt-6 text-center text-sm text-muted">
           <Link href="/login/student" className="font-medium text-primary hover:underline">Back to sign in</Link>
         </p>
+    </>
+  )
+
+  // Supabase's default email links arrive with the session in the URL fragment (#access_token=…)
+  if (!token_hash && !error_description) {
+    return (
+      <AuthShell title="Your CampusBite account">
+        <HashConfirm invalid={invalid} />
       </AuthShell>
     )
+  }
+
+  if (!ok) {
+    return <AuthShell title="This link isn’t valid">{invalid}</AuthShell>
   }
 
   const reset = type === 'recovery'
@@ -60,7 +72,7 @@ export default async function ConfirmLinkPage({
       title={reset ? 'Choose a new password' : 'Create Your Password'}
       subtitle={reset ? 'Pick a new password for your CampusBite account.' : 'Last step — choose a password to activate your CampusBite account.'}
     >
-      <SetPasswordForm token={token_hash} type={type} purpose={reset ? 'PASSWORD_RESET' : 'ACTIVATION'} />
+      <SetPasswordForm token={token_hash!} type={type!} purpose={reset ? 'PASSWORD_RESET' : 'ACTIVATION'} />
     </AuthShell>
   )
 }

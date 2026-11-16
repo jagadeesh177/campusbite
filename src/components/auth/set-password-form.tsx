@@ -23,7 +23,18 @@ function strength(p: string): { score: 0 | 1 | 2 | 3 | 4; label: string } {
   return { score, label: ['Too weak', 'Weak', 'Okay', 'Good', 'Strong'][score] }
 }
 
-export function SetPasswordForm({ token, type, purpose }: { token: string; type: string; purpose: 'ACTIVATION' | 'PASSWORD_RESET' }) {
+export function SetPasswordForm({
+  token,
+  type,
+  purpose,
+  session,
+}: {
+  token: string
+  type: string
+  purpose: 'ACTIVATION' | 'PASSWORD_RESET'
+  /** Set when Supabase's default email link already verified the email and sent tokens in the URL fragment */
+  session?: { accessToken: string; refreshToken: string }
+}) {
   const [state, action] = useActionState<FormState, FormData>(setPasswordWithLinkAction, undefined)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -46,6 +57,12 @@ export function SetPasswordForm({ token, type, purpose }: { token: string; type:
       )}
       <input type="hidden" name="token" value={token} />
       <input type="hidden" name="type" value={type} />
+      {session && (
+        <>
+          <input type="hidden" name="accessToken" value={session.accessToken} />
+          <input type="hidden" name="refreshToken" value={session.refreshToken} />
+        </>
+      )}
 
       <Field label="New password" htmlFor="password">
         <div className="relative">
