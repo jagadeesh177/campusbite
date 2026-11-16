@@ -68,6 +68,8 @@ export async function simulatePaymentAction(
 }
 
 const profileSchema = z.object({
+  fullName: z.string().trim().min(2, 'Enter your full name').max(80, 'Name is too long'),
+  department: z.string().trim().max(80).optional().transform((v) => v || null),
   phone: z
     .string()
     .trim()
@@ -86,6 +88,8 @@ export async function updateProfileAction(
   try {
     const actor = await requireActor('USER')
     const parsed = profileSchema.safeParse({
+      fullName: String(formData.get('fullName') ?? ''),
+      department: String(formData.get('department') ?? ''),
       phone: formData.get('phone') ?? '',
       dietaryPreference: formData.get('dietaryPreference'),
       orderUpdatesEnabled: formData.get('orderUpdatesEnabled') === 'on',
@@ -93,10 +97,14 @@ export async function updateProfileAction(
     if (!parsed.success) {
       return { ok: false, error: 'Please check the highlighted fields.', fieldErrors: parsed.error.flatten().fieldErrors }
     }
-    // Only non-sensitive preferences are editable — college data is read-only
-    await db.userProfile.update({ where: { userId: actor.userId }, data: parsed.data })
-    revalidatePath('/user/profile')
-    return { ok: true, data: undefined, message: 'Preferences saved.' }
+    // Users edit their own name and details; email and role are never editable here
+    const { fullName, ...profile } = parsed.data
+    await db.$transaction([
+      db.user.update({ where: { id: actor.userId }, data: { name: fullName } }),
+      db.userProfile.update({ where: { userId: actor.userId }, data: profile }),
+    ])
+    revalidatePath('/user', 'layout')
+    return { ok: true, data: undefined, message: 'Profile saved.' }
   } catch (e) {
     return toActionError(e)
   }

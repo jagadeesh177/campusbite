@@ -135,3 +135,14 @@ describe('time & pickup slots', () => {
     expect(labels).toEqual([11 * 60 + 45, 12 * 60, 12 * 60 + 15, 12 * 60 + 30])
   })
 })
+
+describe('kitchen settings validation', () => {
+  it('accepts fees typed with a rupee sign or spaces, and rejects bad hours', async () => {
+    const { kitchenSettingsSchema } = await import('@/lib/menu')
+    const base = { acceptingOrders: true, pauseMessage: '', defaultPrepMinutes: 12, maxConcurrentOrders: 40, pickupSlotMinutes: 15, openingTime: '08:00', closingTime: '22:00' }
+    expect(kitchenSettingsSchema.parse({ ...base, convenienceFee: '₹ 5' }).convenienceFee).toBe('5')
+    expect(kitchenSettingsSchema.parse({ ...base, convenienceFee: '2.50' }).convenienceFee).toBe('2.50')
+    expect(kitchenSettingsSchema.safeParse({ ...base, convenienceFee: 'five' }).success).toBe(false)
+    expect(kitchenSettingsSchema.safeParse({ ...base, convenienceFee: '2', closingTime: '07:00' }).success).toBe(false)
+  })
+})

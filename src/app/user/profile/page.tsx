@@ -32,7 +32,7 @@ export default async function ProfilePage() {
         <Card>
           <CardHeader
             title={<span className="inline-flex items-center gap-2"><GraduationCap className="h-5 w-5 text-accent" /> Account details</span>}
-            description={selfRegistered ? 'From your sign-up details.' : 'Contact the canteen office to correct these.'}
+            description="Edit your name and details on the right. Your email can’t be changed."
             action={<Badge tone="success" dot>Email verified</Badge>}
           />
           <CardBody>
@@ -48,10 +48,12 @@ export default async function ProfilePage() {
         </Card>
         <div className="space-y-6">
           <Card>
-            <CardHeader title="Preferences" description="Only you can change these." />
+            <CardHeader title="Edit profile" description="Your name is shown to the canteen on your orders." />
             <CardBody>
               <ProfileForm
                 defaults={{
+                  fullName: user.name,
+                  department: profile.department ?? '',
                   phone: profile.phone ?? '',
                   dietaryPreference: profile.dietaryPreference ?? 'NO_PREFERENCE',
                   orderUpdatesEnabled: profile.orderUpdatesEnabled,

@@ -179,7 +179,11 @@ export const kitchenSettingsSchema = z
     pickupSlotMinutes: z.coerce.number().int().min(5).max(120),
     openingTime: hhmm,
     closingTime: hhmm,
-    convenienceFee: z.string().trim().regex(/^\d{1,3}(\.\d{1,2})?$/, 'Enter a fee like 0, 2 or 2.50'),
+    // Accept "₹5", "5 ", "2.50" — store just the number
+    convenienceFee: z
+      .string()
+      .transform((v) => v.replace(/[₹\s,]/g, '').replace(/^rs\.?/i, ''))
+      .pipe(z.string().regex(/^\d{1,3}(\.\d{1,2})?$/, 'Enter a fee like 0, 2 or 2.50')),
   })
   .refine((v) => parseHHMM(v.closingTime) > parseHHMM(v.openingTime), {
     message: 'Closing time must be after opening time',
