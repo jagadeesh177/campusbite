@@ -156,6 +156,23 @@ export async function requestUserPasswordReset(rawEmail: string, ip: string | nu
   const cooldownKey = await cooldown('reset', address, ip)
 
   const user = await db.user.findUnique({ where: { email: address } })
+
+  // Signed up but never finished activation: they have no password yet, so send the
+  // activation link again — it lets them set a password and finish (was silently ignored).
+  if (user && user.role === 'USER' && user.status === 'PENDING_VERIFICATION') {
+    const { error } = await createSupabaseAuthClient().auth.signInWithOtp({
+      email: address,
+      options: { shouldCreateUser: true, emailRedirectTo: confirmUrl(), data: { full_name: user.name } },
+    })
+    if (error) {
+      await releaseCooldown(cooldownKey)
+      await logRequest('user.password_reset_requested', address, 'email_delivery_failed')
+      sendFailure(error)
+    }
+    await logRequest('user.password_reset_requested', address, 'activation_link_resent')
+    return
+  }
+
   if (!user || user.role !== 'USER' || user.status !== 'ACTIVE') {
     await logRequest('user.password_reset_requested', address, 'no_active_user_account')
     return

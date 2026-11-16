@@ -34,8 +34,8 @@ export function LinkRequestForm({ purpose }: { purpose: 'ACTIVATION' | 'PASSWORD
             </>
           ) : (
             <>
-              If <strong className="text-ink">{state.email}</strong> has an active CampusBite user account, we’ve sent a
-              password reset link. It works once and expires in 15 minutes.
+              If <strong className="text-ink">{state.email}</strong> has a CampusBite user account, we’ve sent a link to set a
+              new password. It works once and expires in 15 minutes.
             </>
           )}
         </p>

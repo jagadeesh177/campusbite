@@ -217,3 +217,24 @@ describe('change password while signed in (Supabase users)', () => {
     expect((await authenticate('USER', { email: 'asha@gmail.com', password: 'Newer2026x' }, null)).role).toBe('USER')
   })
 })
+
+describe('forgot password for existing accounts', () => {
+  it('a user who signed up but never finished gets a link to set a password', async () => {
+    await reg('half.done@gmail.com') // pending, no password yet
+    await prisma.rateLimitBucket.deleteMany()
+    await requestUserPasswordReset('half.done@gmail.com', null)
+    const mail = fake.lastTo('half.done@gmail.com')!
+    expect(fake.sent.filter((m) => m.to === 'half.done@gmail.com')).toHaveLength(2)
+    const r = await complete(mail.tokenHash, 'email', 'Finish2026x')
+    expect(r.purpose).toBe('ACTIVATION')
+    expect((await authenticate('USER', { email: 'half.done@gmail.com', password: 'Finish2026x' }, null)).role).toBe('USER')
+  })
+
+  it('canteen and staff emails never get a user reset email (an administrator resets those)', async () => {
+    const canteen = await prisma.user.create({ data: { email: 'kitchen.helper@gmail.com', name: 'Helper', role: 'CANTEEN', status: 'DEACTIVATED' } })
+    await requestUserPasswordReset(canteen.email, null)
+    expect(fake.sent).toHaveLength(0)
+    const log = await prisma.auditLog.findFirstOrThrow({ where: { action: 'user.password_reset_requested' } })
+    expect(log.metadata).toMatchObject({ outcome: 'no_active_user_account' })
+  })
+})
