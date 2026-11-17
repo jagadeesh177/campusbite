@@ -75,7 +75,7 @@ export default async function UserHome({
             title={<span className="inline-flex items-center gap-2"><Bell className="h-4.5 w-4.5 text-accent" /> Updates</span>}
             action={
               <form action={markNotificationsReadAction}>
-                <button className="text-sm font-semibold text-primary hover:underline">Mark all read</button>
+                <button className="-my-2 inline-flex min-h-11 items-center px-2 text-sm font-semibold text-primary hover:underline">Mark all read</button>
               </form>
             }
           />

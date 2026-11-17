@@ -150,7 +150,7 @@ export function PortalShell({
       </aside>
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-line bg-surface/95 px-4 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-line bg-surface/95 pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] backdrop-blur lg:hidden">
         <Logo href={nav[0]?.href ?? '/'} subtitle={portalLabel} />
         <div className="flex items-center gap-2">
           {topRight}
@@ -185,7 +185,7 @@ export function PortalShell({
       )}
 
       <div className="lg:pl-64">
-        <div className={cn('mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8', bottomNav && 'pb-28 lg:pb-8')}>
+        <div className={cn('mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8', bottomNav && 'pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-8')}>
           {topRight && <div className="mb-4 hidden justify-end lg:flex">{topRight}</div>}
           {children}
         </div>

@@ -1,11 +1,9 @@
-import { db } from '@/lib/db'
 import { requirePortalUser } from '@/lib/auth/guards'
 import { PortalShell, type NavItem } from '@/components/portal/portal-shell'
 import { LiveUpdates } from '@/components/portal/live-updates'
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
   const user = await requirePortalUser('STAFF')
-  const profile = await db.staffProfile.findUnique({ where: { userId: user.id }, select: { title: true } })
   const p = (perm: string) => user.permissions.includes(perm)
   const accounts = p('CANTEEN_ACCOUNTS') ? '/staff/canteen' : p('STAFF_ACCOUNTS') ? '/staff/team' : null
   const settings = p('SETTINGS') ? '/staff/settings' : p('AUDIT') ? '/staff/audit' : null
@@ -20,7 +18,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
     ...(settings ? [{ href: settings, label: 'Settings', icon: 'settings' } as const] : []),
   ]
   return (
-    <PortalShell portalLabel="Staff & Admin" nav={nav} user={{ name: user.name, subtitle: profile?.title ?? 'Staff' }} topRight={<LiveUpdates />}>
+    <PortalShell portalLabel="Staff & Admin" nav={nav} user={{ name: user.name, subtitle: user.title ?? 'Staff' }} topRight={<LiveUpdates />}>
       {children}
     </PortalShell>
   )

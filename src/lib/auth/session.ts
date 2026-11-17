@@ -24,6 +24,8 @@ export interface SessionUser {
   role: Role
   permissions: string[]
   mustChangePassword: boolean
+  /** Staff job title / canteen counter name (already loaded with the session — no extra query) */
+  title: string | null
   profile: {
     externalStudentId: string | null
     enrollmentStatus: string
@@ -87,6 +89,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     role: u.role,
     permissions,
     mustChangePassword: u.mustChangePassword,
+    title: u.staffProfile?.title ?? u.canteenProfile?.counterName ?? null,
     profile: u.userProfile
       ? {
           externalStudentId: u.userProfile.externalStudentId,

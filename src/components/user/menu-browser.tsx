@@ -49,7 +49,7 @@ export function MenuBrowser({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search dosa, sandwich, coffee…"
-            className="h-11 w-full rounded-xl border border-line bg-surface pr-3 pl-10 text-[15px] shadow-[inset_0_1px_1px_rgb(23_63_53/0.03)] focus:border-accent focus:shadow-[var(--shadow-focus)] focus:outline-none"
+            className="h-11 w-full rounded-xl border border-line bg-surface pr-3 pl-10 text-base sm:text-[15px] shadow-[inset_0_1px_1px_rgb(23_63_53/0.03)] focus:border-accent focus:shadow-[var(--shadow-focus)] focus:outline-none"
           />
         </label>
         <label className="inline-flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-line bg-surface px-4 text-sm font-medium">
@@ -90,8 +90,9 @@ export function MenuBrowser({
         </div>
       )}
 
+      {cart.count > 0 && <div className="h-20 lg:hidden" aria-hidden />}
       {cart.count > 0 && (
-        <div className="fixed inset-x-4 bottom-20 z-20 lg:static lg:mt-8">
+        <div className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-20 lg:static lg:mt-8">
           <Link
             href="/user/cart"
             className={buttonClasses('primary', 'xl', 'w-full justify-between shadow-lift lg:w-auto lg:min-w-80')}

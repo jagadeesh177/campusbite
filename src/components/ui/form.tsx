@@ -2,7 +2,7 @@ import { forwardRef, type ComponentProps, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
 const control =
-  'block w-full rounded-xl border border-line bg-surface px-3.5 text-[15px] text-ink placeholder:text-muted/80 ' +
+  'block w-full rounded-xl border border-line bg-surface px-3.5 text-base text-ink sm:text-[15px] placeholder:text-muted/80 ' +
   'shadow-[inset_0_1px_1px_rgb(23_63_53/0.03)] transition-colors ' +
   'hover:border-primary/25 focus:border-accent focus:outline-none focus:shadow-[var(--shadow-focus)] ' +
   'disabled:cursor-not-allowed disabled:bg-bg disabled:opacity-70 aria-[invalid=true]:border-danger'

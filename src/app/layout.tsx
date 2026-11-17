@@ -30,6 +30,8 @@ export const viewport: Viewport = {
   themeColor: '#173F35',
   width: 'device-width',
   initialScale: 1,
+  // Let iPhones report safe-area insets (notch / Dynamic Island / home indicator)
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

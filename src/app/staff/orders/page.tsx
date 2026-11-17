@@ -102,7 +102,25 @@ export default async function StaffOrdersPage({
         {orders.length === 0 ? (
           <EmptyState icon={Search} title="No orders found" description={q ? 'Try a different search.' : undefined} />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Phones: one card per order, status and total visible without sideways scrolling */}
+          <ul className="divide-y divide-line sm:hidden">
+            {orders.map((o) => (
+              <li key={o.id} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono font-semibold">{o.orderNumber}</span>
+                  <span className="font-semibold tabular-nums">{formatINR(rupeesToPaise(o.total))}</span>
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <OrderStatusBadge status={o.status} />
+                  <Link href={`/staff/users/${o.user.id}`} className="text-sm font-medium hover:text-primary hover:underline">{o.user.name}</Link>
+                </div>
+                <p className="mt-1 truncate text-sm text-muted">{o.items.map((i) => `${i.nameSnapshot} × ${i.quantity}`).join(', ')}</p>
+                <p className="text-xs text-subtle">{formatDateTime(o.createdAt, env.timezone)}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-subtle">
@@ -132,6 +150,7 @@ export default async function StaffOrdersPage({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
       {pages > 1 && (

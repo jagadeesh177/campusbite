@@ -26,7 +26,7 @@ export default async function UserLoginPage() {
         <p className="mt-1 text-muted">
           Create your account with any personal email — we&apos;ll email you a secure activation link.
         </p>
-        <Link href="/activate" className="mt-3 inline-block font-semibold text-primary hover:text-primary-hover hover:underline">
+        <Link href="/activate" className="mt-1 inline-flex min-h-11 items-center font-semibold text-primary hover:text-primary-hover hover:underline">
           Create my account →
         </Link>
       </div>

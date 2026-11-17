@@ -34,7 +34,7 @@ export default async function OrderDetailPage({
 
   return (
     <div>
-      <Link href="/user/orders" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+      <Link href="/user/orders" className="mb-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
         <ArrowLeft className="h-4 w-4" /> My orders
       </Link>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">

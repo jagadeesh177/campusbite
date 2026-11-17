@@ -1,11 +1,9 @@
 import { requirePortalUser } from '@/lib/auth/guards'
-import { db } from '@/lib/db'
 import { PortalShell, type NavItem } from '@/components/portal/portal-shell'
 import { LiveUpdates } from '@/components/portal/live-updates'
 
 export default async function CanteenLayout({ children }: { children: React.ReactNode }) {
   const user = await requirePortalUser('CANTEEN')
-  const profile = await db.canteenProfile.findUnique({ where: { userId: user.id }, select: { counterName: true } })
   // Busy-hours first: orders, pickup check, history, menu
   const nav: NavItem[] = [
     ...(user.permissions.includes('ORDERS')
@@ -21,7 +19,7 @@ export default async function CanteenLayout({ children }: { children: React.Reac
     <PortalShell
       portalLabel="Canteen"
       nav={nav}
-      user={{ name: user.name, subtitle: profile?.counterName ?? 'Canteen' }}
+      user={{ name: user.name, subtitle: user.title ?? 'Canteen' }}
       topRight={<LiveUpdates />}
     >
       {children}
