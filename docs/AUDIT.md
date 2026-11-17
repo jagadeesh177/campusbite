@@ -98,3 +98,22 @@ Nothing in this plan removes a working capability; every removed page is merged 
 | Q4 Images | ✅ food photos served through the Next.js image optimiser (resized, WebP) |
 
 Remaining: Razorpay keys for real payments; Gmail sending limit (~500/day) — move Supabase SMTP to Resend with a domain for more.
+
+## 9. Browser, responsive and performance audit (17 Nov 2026)
+
+Method: production build run locally and inspected in a Chromium-based browser with viewport emulation (360×800, 393×852, 768×1024, 1366×768); live site measured with curl timings and the browser Performance API. No physical phones/tablets, Safari or Firefox were used.
+
+| Finding | Root cause | Fix |
+|---|---|---|
+| iPhone safe areas never applied | `viewport-fit=cover` missing, so `env(safe-area-inset-*)` was always 0 | Added; header and content padding use the insets |
+| iPhone zooms on every input tap | Inputs used 15px text (< 16px triggers iOS Safari zoom) | 16px on phones, 15px from tablet up |
+| Floating cart bar covered the last menu card | Page bottom padding only accounted for the tab bar | Spacer while the bar is visible; bar positioned above tab bar + home indicator |
+| Staff Orders on phones hid Status/Total | 760px table inside a sideways scroller | Card list on phones, table from 640px |
+| Small tap targets | Text-sized links/buttons (“Mark all read”, back link, “Create my account”) | 44px touch height |
+| Navigation felt frozen | No `loading.tsx`, so clicks showed nothing until the server answered and dynamic pages could not be prefetched | Loading screen per portal |
+| Extra DB query on every staff/canteen page | Layouts re-read the profile already loaded with the session | Reuse session data |
+| Slow first requests (2–3.5 s) | Serverless cold start + free Neon database waking after 5 min idle | Not fixable in code; see below |
+
+Measured (live): warm pages 0.26–0.6 s TTFB (≈0.4 s of that is network from the tester’s connection), signed-in pages 20–100 ms server time (local), homepage LCP 0.74–0.94 s, CLS 0, JS ≤ 122 KB per route. Tried and rejected: Prisma engine-free client (first query 0.28–0.44 s vs 0.11–0.13 s with the native engine locally).
+
+Remaining: cold starts (Neon free plan sleeps after 5 min — a paid plan or always-on compute removes most of the 2–3 s first-load delay), Gmail SMTP takes ~20 s per email (Resend + domain is faster), physical-device and Safari/Firefox checks.
