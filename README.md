@@ -224,7 +224,8 @@ npm test
 3. **Build command:** Vercel uses `npm run vercel-build` automatically, which runs `prisma generate && prisma migrate deploy && next build`.
 4. **Region:** `vercel.json` pins functions to Mumbai (`bom1`); put the database in the same region.
 5. **Cron:** `vercel.json` schedules `/api/cron/expire-orders` daily (Hobby plan limit). Unpaid orders are also expired automatically before every checkout and whenever the kitchen board loads. On a Pro plan you can run it every 15 minutes.
-6. **Razorpay:** Dashboard → Webhooks → URL `https://<domain>/api/payments/razorpay/webhook`, events `payment.captured`, `payment.failed`, `order.paid`, `refund.processed`, `refund.failed`, secret = `RAZORPAY_WEBHOOK_SECRET`. Enable **automatic capture** and UPI on the account. Start with **test-mode** keys.
+6. **Razorpay Test Mode (no real money):** create a Razorpay account (no KYC needed for Test Mode) → **Get test keys**. Put `RAZORPAY_KEY_ID` (`rzp_test_…`) and `RAZORPAY_KEY_SECRET` in `.env` locally, or in Vercel → Project → Settings → Environment Variables, together with `PAYMENT_PROVIDER="razorpay"` and `PAYMENT_SIMULATOR_ENABLED="false"`. Live keys (`rzp_live_…`) are refused unless `RAZORPAY_ALLOW_LIVE="true"`. Test card: `4386 2894 0766 0153`, any future expiry, any CVV, any OTP. UPI (app redirect on phones, QR on laptops) appears first in checkout once UPI is enabled on the Razorpay account.
+7. **Razorpay webhooks:** Dashboard → Webhooks → URL `https://<domain>/api/payments/razorpay/webhook`, events `payment.captured`, `payment.failed`, `order.paid`, `refund.processed`, `refund.failed`, secret = `RAZORPAY_WEBHOOK_SECRET`. Enable **automatic capture** and UPI on the account. Start with **test-mode** keys.
 7. **Do not seed production.** Create the first admin account with a one-off script or SQL, then create everyone else from the staff portal.
 
 ### Production checklist

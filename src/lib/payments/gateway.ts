@@ -36,6 +36,7 @@ export class RazorpayGateway implements PaymentGateway {
 
   constructor(keyId: string, keySecret: string) {
     if (!keyId || !keySecret) throw new Error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are required')
+    assertRazorpayModeAllowed(keyId)
     this.client = new Razorpay({ key_id: keyId, key_secret: keySecret })
   }
 
@@ -60,6 +61,25 @@ export class RazorpayGateway implements PaymentGateway {
       currency: p.currency,
       method: p.method,
     }
+  }
+
+  /** Payments made against one Razorpay order (to recover from a missed callback/webhook). */
+  async fetchOrderPayments(orderId: string) {
+    const r = await this.client.orders.fetchPayments(orderId)
+    return (r.items ?? []).map((p) => ({
+      id: p.id,
+      orderId: p.order_id,
+      status: p.status,
+      amountPaise: Number(p.amount),
+      currency: p.currency,
+      method: p.method,
+    }))
+  }
+
+  /** Captures an authorized payment (only needed when automatic capture is off). */
+  async capture(paymentId: string, amountPaise: number, currency: string) {
+    const p = await this.client.payments.capture(paymentId, amountPaise, currency)
+    return { status: p.status }
   }
 
   async refund(i: { gatewayPaymentId: string; amountPaise: number; notes?: Record<string, string> }) {
@@ -89,6 +109,26 @@ export class SimulatorGateway implements PaymentGateway {
 }
 
 // ---------------------------------------------------------------------------
+// Test Mode guard: live keys (rzp_live_…) are refused unless RAZORPAY_ALLOW_LIVE
+// is explicitly "true", so a misconfigured deployment cannot take real money.
+// ---------------------------------------------------------------------------
+
+export function razorpayMode(keyId: string): 'test' | 'live' | 'unknown' {
+  if (keyId.startsWith('rzp_test_')) return 'test'
+  if (keyId.startsWith('rzp_live_')) return 'live'
+  return 'unknown'
+}
+
+export function assertRazorpayModeAllowed(keyId: string) {
+  const mode = razorpayMode(keyId)
+  if (mode === 'test') return
+  if (mode === 'live' && env.razorpay.allowLive) return
+  throw new Error(
+    mode === 'live'
+      ? 'Razorpay LIVE keys are configured but RAZORPAY_ALLOW_LIVE is not "true". Refusing to take real payments.'
+      : 'RAZORPAY_KEY_ID does not look like a Razorpay key (expected rzp_test_… or rzp_live_…).',
+  )
+}
 
 let razorpay: RazorpayGateway | null = null
 const simulator = new SimulatorGateway()

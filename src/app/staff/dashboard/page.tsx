@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { env } from '@/lib/env'
 import { requirePortalUser } from '@/lib/auth/guards'
 import { staffDashboard } from '@/lib/reports'
-import { isSimulatorActive } from '@/lib/payments/gateway'
+import { isSimulatorActive, razorpayMode } from '@/lib/payments/gateway'
 import { formatINR, rupeesToPaise } from '@/lib/money'
 import { formatDateTime } from '@/lib/time'
 import { Card, CardHeader } from '@/components/ui/card'
@@ -35,6 +35,11 @@ export default async function StaffDashboard({ searchParams }: { searchParams: P
     <>
       <PageHeader eyebrow={`Welcome back, ${user.name.split(' ')[0]}`} title="Today" description="Updates by itself as orders come in." />
       {denied && <Notice tone="warning" className="mb-4">You don&apos;t have permission for that section.</Notice>}
+      {env.paymentProvider === 'razorpay' && razorpayMode(env.razorpay.keyId) === 'test' && (
+        <Notice tone="warning" className="mb-4" title="Payments are in Razorpay Test Mode">
+          Orders go through Razorpay&apos;s test checkout. No real money is collected.
+        </Notice>
+      )}
       {isSimulatorActive() && (
         <Notice tone="warning" className="mb-4" title="Payments are in test mode">
           No real money is collected until Razorpay keys are added.

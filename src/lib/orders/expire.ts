@@ -1,5 +1,6 @@
 import 'server-only'
 import { db } from '@/lib/db'
+import { reconcilePendingRazorpay } from '@/lib/payments/razorpay-handlers'
 import { recordStatusChange } from './events'
 
 export const PAYMENT_WINDOW_MINUTES = 30
@@ -17,6 +18,11 @@ export async function expireStalePendingOrders(now = new Date()): Promise<number
     select: { id: true, orderNumber: true, userId: true },
     take: 200,
   })
+  // Before cancelling, ask Razorpay whether any of these were actually paid
+  // (a lost callback/webhook must not turn a paid order into a refund).
+  if (stale.length) {
+    await reconcilePendingRazorpay({ orderIds: stale.slice(0, 10).map((o) => o.id), limit: 10 }).catch(() => 0)
+  }
   let expired = 0
   for (const order of stale) {
     await db.$transaction(async (tx) => {

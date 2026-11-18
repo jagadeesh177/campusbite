@@ -19,10 +19,12 @@ import { cn } from '@/lib/cn'
 export function CheckoutView({
   tz,
   provider,
+  razorpayTest = false,
   user,
 }: {
   tz: string
   provider: 'razorpay' | 'simulator'
+  razorpayTest?: boolean
   user: { name: string; email: string }
 }) {
   const cart = useCart()
@@ -72,10 +74,12 @@ export function CheckoutView({
     }
     try {
       const outcome = await payWithRazorpay(session, user)
-      router.push(`/user/orders/${session.orderId}${outcome === 'dismissed' ? '?payment=cancelled' : ''}`)
+      // Full page load (not client navigation): the order page is re-read from
+      // the server, which is the only place that decides whether it is paid.
+      window.location.assign(`/user/orders/${session.orderId}${outcome === 'dismissed' ? '?payment=cancelled' : '?paid=1'}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Payment failed')
-      router.push(`/user/orders/${session.orderId}?payment=failed`)
+      window.location.assign(`/user/orders/${session.orderId}?payment=failed`)
     }
   }
 
@@ -151,11 +155,17 @@ export function CheckoutView({
                   <Smartphone className="h-5 w-5" />
                 </span>
                 <div>
-                  <div className="font-semibold">UPI</div>
-                  <div className="text-sm text-muted">Google Pay, PhonePe, Paytm, BHIM and more — secured by Razorpay</div>
+                  <div className="font-semibold">UPI app or QR code</div>
+                  <div className="text-sm text-muted">On your phone, pick GPay, PhonePe, Paytm or BHIM and it opens straight away. On a laptop, scan the QR code. Cards and net banking also work. Secured by Razorpay.</div>
                 </div>
               </div>
-            ) : (
+            ) : null}
+            {provider === 'razorpay' && razorpayTest ? (
+              <Notice tone="warning" title="Razorpay Test Mode" className="mt-3">
+                <strong>No real money is charged.</strong> Use Razorpay&apos;s test UPI ID or test card on the payment screen.
+              </Notice>
+            ) : null}
+            {provider === 'razorpay' ? null : (
               <div className="mt-4">
                 <Notice tone="warning" title="Test mode">
                   Payments are in test mode — <strong>no real money is charged</strong>.

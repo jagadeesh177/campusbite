@@ -34,6 +34,8 @@ export const env = {
       keyId: process.env.RAZORPAY_KEY_ID ?? '',
       keySecret: process.env.RAZORPAY_KEY_SECRET ?? '',
       webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
+      /** Must be exactly "true" before live (real-money) keys are accepted */
+      allowLive: process.env.RAZORPAY_ALLOW_LIVE === 'true',
     }
   },
   get cronSecret() {

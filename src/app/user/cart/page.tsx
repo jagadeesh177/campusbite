@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { requirePortalUser } from '@/lib/auth/guards'
 import { env } from '@/lib/env'
+import { razorpayMode } from '@/lib/payments/gateway'
 import { PageHeader } from '@/components/ui/misc'
 import { CheckoutView } from './checkout-view'
 
@@ -15,6 +16,7 @@ export default async function CartPage() {
       <CheckoutView
         tz={env.timezone}
         provider={env.paymentProvider === 'razorpay' ? 'razorpay' : 'simulator'}
+        razorpayTest={env.paymentProvider === 'razorpay' && razorpayMode(env.razorpay.keyId) === 'test'}
         user={{ name: user.name, email: user.email }}
       />
     </>

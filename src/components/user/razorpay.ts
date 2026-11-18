@@ -40,6 +40,21 @@ export async function payWithRazorpay(
       description: `Order ${session.orderNumber}`,
       prefill,
       theme: { color: '#173F35' },
+      // UPI first: on phones Razorpay lists the UPI apps installed on the
+      // device (GPay, PhonePe, Paytm, BHIM…) and opens the chosen one directly;
+      // on laptops it shows a UPI QR code to scan. Other methods stay below.
+      config: {
+        display: {
+          blocks: {
+            upi: {
+              name: 'Pay using any UPI app',
+              instruments: [{ method: 'upi', flows: ['intent', 'qr', 'collect'] }],
+            },
+          },
+          sequence: ['block.upi'],
+          preferences: { show_default_blocks: true },
+        },
+      },
       handler: async (resp: Record<string, string>) => {
         try {
           const r = await fetch('/api/payments/razorpay/verify', {

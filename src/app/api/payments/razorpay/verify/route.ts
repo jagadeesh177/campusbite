@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}))
     const r = await verifyRazorpayCheckout(actor, body)
     if (r.outcome === 'rejected') return NextResponse.json({ error: 'Payment could not be verified.' }, { status: 400 })
+    if (r.outcome === 'failed') return NextResponse.json({ error: 'The payment failed. No money was taken — you can try again.' }, { status: 402 })
     return NextResponse.json({ outcome: r.outcome, orderId: 'orderId' in r ? r.orderId : undefined })
   } catch (e) {
     if (e instanceof AppError) {

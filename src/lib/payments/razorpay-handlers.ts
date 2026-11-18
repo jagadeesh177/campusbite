@@ -6,8 +6,9 @@ import { audit } from '@/lib/audit'
 import { env } from '@/lib/env'
 import { AppError } from '@/lib/errors'
 import { isUniqueViolation } from '@/lib/tx'
+import { rupeesToPaise } from '@/lib/money'
 import type { Actor } from '@/lib/auth/guards'
-import { confirmPayment, markPaymentFailed, type ConfirmOutcome } from './confirm'
+import { confirmPayment, markPaymentFailed, type ConfirmOutcome, type VerifiedVia } from './confirm'
 import { getRazorpayGateway } from './gateway'
 import { failRefundByGatewayId, finalizeRefundByGatewayId } from './refunds'
 import { verifyRazorpayCheckoutSignature, verifyRazorpayWebhookSignature } from './signatures'
@@ -26,8 +27,10 @@ export const checkoutCallbackSchema = z.object({
 export async function verifyRazorpayCheckout(
   actor: Actor,
   input: z.input<typeof checkoutCallbackSchema>,
-): Promise<ConfirmOutcome | { outcome: 'pending' }> {
-  const p = checkoutCallbackSchema.parse(input)
+): Promise<ConfirmOutcome | { outcome: 'pending' } | { outcome: 'failed' }> {
+  const parsed = checkoutCallbackSchema.safeParse(input)
+  if (!parsed.success) throw new AppError('VALIDATION', 'Invalid payment response.')
+  const p = parsed.data
   const payment = await db.payment.findUnique({
     where: { gatewayOrderId: p.razorpay_order_id },
     include: { order: { select: { userId: true } } },
@@ -45,16 +48,104 @@ export async function verifyRazorpayCheckout(
 
   const rp = await getRazorpayGateway().fetchPayment(p.razorpay_payment_id)
   if (rp.orderId !== p.razorpay_order_id) throw new AppError('PAYMENT', 'Payment does not match this order.')
-  if (rp.status !== 'captured') return { outcome: 'pending' } // webhook will complete it
+  return applyRazorpayPayment(rp, 'checkout_signature')
+}
 
-  return confirmPayment({
-    gatewayOrderId: p.razorpay_order_id,
-    gatewayPaymentId: rp.id,
-    amountPaise: rp.amountPaise,
-    currency: rp.currency,
-    verifiedVia: 'checkout_signature',
-    method: rp.method,
+type RazorpayPaymentView = {
+  id: string
+  orderId: string | null | undefined
+  status: string
+  amountPaise: number
+  currency: string
+  method?: string | null
+}
+
+/**
+ * Applies a payment fetched from Razorpay's API (never from the browser):
+ * captured → confirm; authorized → capture first (only if the amount matches
+ * our order), then confirm; failed → mark failed; anything else → pending.
+ */
+async function applyRazorpayPayment(
+  rp: RazorpayPaymentView,
+  via: VerifiedVia,
+): Promise<ConfirmOutcome | { outcome: 'pending' } | { outcome: 'failed' }> {
+  const orderId = rp.orderId
+  if (!orderId) return { outcome: 'rejected', reason: 'no_order' }
+  if (rp.status === 'authorized') {
+    const ours = await db.payment.findUnique({ where: { gatewayOrderId: orderId } })
+    if (!ours) return { outcome: 'rejected', reason: 'unknown_gateway_order' }
+    if (rp.amountPaise !== rupeesToPaise(ours.amount) || rp.currency !== ours.currency) {
+      // Not captured → Razorpay releases the authorization back to the customer automatically
+      return confirmPayment({ gatewayOrderId: orderId, gatewayPaymentId: rp.id, amountPaise: rp.amountPaise, currency: rp.currency, verifiedVia: via, method: rp.method })
+    }
+    const c = await getRazorpayGateway().capture(rp.id, rp.amountPaise, rp.currency)
+    if (c.status !== 'captured') return { outcome: 'pending' }
+    rp = { ...rp, status: 'captured' }
+  }
+  if (rp.status === 'captured') {
+    return confirmPayment({
+      gatewayOrderId: orderId,
+      gatewayPaymentId: rp.id,
+      amountPaise: rp.amountPaise,
+      currency: rp.currency,
+      verifiedVia: via,
+      method: rp.method,
+    })
+  }
+  if (rp.status === 'failed') {
+    await markPaymentFailed({ gatewayOrderId: orderId, reason: 'failed' })
+    return { outcome: 'failed' }
+  }
+  return { outcome: 'pending' }
+}
+
+/**
+ * Asks Razorpay directly which payments were made against an order — used
+ * by "Check payment status", the expiry job and the cron as a safety net for
+ * a lost browser callback or webhook. Idempotent.
+ */
+export async function reconcileRazorpayPayment(
+  paymentRowId: string,
+): Promise<'paid' | 'pending' | 'failed' | 'rejected' | 'not_found'> {
+  const payment = await db.payment.findUnique({ where: { id: paymentRowId } })
+  if (!payment || payment.provider !== 'RAZORPAY') return 'not_found'
+  if (payment.status === 'SUCCEEDED' || payment.status === 'REFUNDED') return 'paid'
+  const attempts = await getRazorpayGateway().fetchOrderPayments(payment.gatewayOrderId)
+  const best =
+    attempts.find((a) => a.status === 'captured') ??
+    attempts.find((a) => a.status === 'authorized') ??
+    (attempts.length && attempts.every((a) => a.status === 'failed') ? attempts[0] : null)
+  if (!best) return 'pending'
+  const r = await applyRazorpayPayment(best, 'status_check')
+  if (r.outcome === 'confirmed' || r.outcome === 'already_processed' || r.outcome === 'refund_required') return 'paid'
+  if (r.outcome === 'failed') return 'failed'
+  if (r.outcome === 'pending') return 'pending'
+  return 'rejected'
+}
+
+/** Reconciles waiting Razorpay payments (optionally only for some orders). */
+export async function reconcilePendingRazorpay(opts: { orderIds?: string[]; limit?: number } = {}) {
+  if (!env.razorpay.keyId || !env.razorpay.keySecret) return 0
+  const rows = await db.payment.findMany({
+    where: {
+      provider: 'RAZORPAY',
+      status: { in: ['CREATED', 'FAILED'] },
+      order: { status: 'PAYMENT_PENDING' },
+      ...(opts.orderIds ? { orderId: { in: opts.orderIds } } : {}),
+    },
+    take: opts.limit ?? 25,
+    select: { id: true },
   })
+  let n = 0
+  for (const r of rows) {
+    try {
+      await reconcileRazorpayPayment(r.id)
+      n++
+    } catch (e) {
+      console.error('[razorpay] status check failed', r.id, e instanceof Error ? e.message : e)
+    }
+  }
+  return n
 }
 
 interface RazorpayEntity {
@@ -103,6 +194,16 @@ export async function handleRazorpayWebhook(
     const payment = event.payload?.payment?.entity
     const refund = event.payload?.refund?.entity
     switch (event.event) {
+      case 'payment.authorized':
+        // Only reached when automatic capture is off: capture after checking the amount
+        if (payment?.order_id && payment.amount != null && payment.currency) {
+          const r = await applyRazorpayPayment(
+            { id: payment.id, orderId: payment.order_id, status: 'authorized', amountPaise: payment.amount, currency: payment.currency, method: payment.method },
+            'webhook',
+          )
+          result = r.outcome
+        }
+        break
       case 'payment.captured':
       case 'order.paid':
         if (payment?.order_id && payment.amount != null && payment.currency) {

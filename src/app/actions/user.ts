@@ -9,6 +9,7 @@ import { requireActor } from '@/lib/auth/guards'
 import { createOrder, quoteCart, type CartQuote, type CheckoutSession } from '@/lib/orders/create-order'
 import { cancelOrderAsUser } from '@/lib/orders/transitions'
 import { simulatePayment } from '@/lib/payments/simulator'
+import { reconcileRazorpayPayment } from '@/lib/payments/razorpay-handlers'
 import { deleteOwnAccount } from '@/lib/account-deletion'
 import { destroySession, getSessionUser } from '@/lib/auth/session'
 import { changeOwnPassword } from '@/lib/auth/change-password'
@@ -48,6 +49,26 @@ export async function cancelOrderAction(orderId: string): Promise<ActionResult<{
       data: { refund: r.refund },
       message: r.status === 'CANCELLED' ? 'Order cancelled.' : 'Order cancelled — your refund has been started.',
     }
+  } catch (e) {
+    return toActionError(e)
+  }
+}
+
+/** "Check payment status": asks Razorpay directly (never trusts the browser). */
+export async function checkPaymentStatusAction(orderId: string): Promise<ActionResult<{ status: string }>> {
+  try {
+    const actor = await requireActor('USER')
+    const payment = await db.payment.findFirst({
+      where: { order: { id: String(orderId).slice(0, 40), userId: actor.userId }, provider: 'RAZORPAY' },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
+    })
+    if (!payment) return { ok: false, error: 'No online payment found for this order.' }
+    const status = await reconcileRazorpayPayment(payment.id)
+    revalidatePath('/user', 'layout')
+    const message =
+      status === 'paid' ? 'Payment verified.' : status === 'failed' ? 'The payment failed. No money was taken.' : 'No completed payment yet.'
+    return { ok: true, data: { status }, message }
   } catch (e) {
     return toActionError(e)
   }

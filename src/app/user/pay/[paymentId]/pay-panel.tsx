@@ -54,7 +54,6 @@ export function SimulatorPanel({ paymentId, orderId, amountPaise }: { paymentId:
 }
 
 export function RazorpayRetry({ session, user }: { session: CheckoutSession; user: { name: string; email: string } }) {
-  const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   return (
@@ -69,7 +68,7 @@ export function RazorpayRetry({ session, user }: { session: CheckoutSession; use
           setError(null)
           try {
             const outcome = await payWithRazorpay(session, user)
-            if (outcome !== 'dismissed') router.push(`/user/orders/${session.orderId}?paid=1`)
+            if (outcome !== 'dismissed') window.location.assign(`/user/orders/${session.orderId}?paid=1`)
           } catch (e) {
             setError(e instanceof Error ? e.message : 'Payment failed')
           } finally {

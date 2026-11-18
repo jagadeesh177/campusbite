@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { CheckPaymentButton } from '@/components/user/check-payment-button'
 import { ArrowLeft, Clock, ReceiptText } from 'lucide-react'
 import { requirePortalUser } from '@/lib/auth/guards'
 import { env } from '@/lib/env'
@@ -56,7 +57,7 @@ export default async function OrderDetailPage({
           This usually takes a few seconds. This page updates automatically.
         </Notice>
       )}
-      {sp.payment === 'cancelled' && order.status === 'PAYMENT_PENDING' && (
+      {(sp.payment === 'cancelled' || sp.payment === 'failed') && order.status === 'PAYMENT_PENDING' && (
         <Notice tone="warning" className="mb-6">Payment was not completed. You can pay now or cancel the order.</Notice>
       )}
 
@@ -69,7 +70,10 @@ export default async function OrderDetailPage({
                   <div className="font-semibold">Waiting for payment</div>
                   <div className="text-sm text-muted">Pay within 30 minutes of placing the order or it will expire.</div>
                 </div>
-                <ButtonLink href={`/user/pay/${order.payment.id}`} size="lg">Pay {formatINR(order.totalPaise)}</ButtonLink>
+                <div className="flex flex-wrap items-center gap-3">
+                  {order.payment.provider === 'RAZORPAY' && <CheckPaymentButton orderId={order.id} />}
+                  <ButtonLink href={`/user/pay/${order.payment.id}`} size="lg">Pay {formatINR(order.totalPaise)}</ButtonLink>
+                </div>
               </CardBody>
             </Card>
           )}

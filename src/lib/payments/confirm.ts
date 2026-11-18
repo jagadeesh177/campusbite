@@ -8,7 +8,8 @@ import { generatePickupToken } from '@/lib/orders/codes'
 import { recordStatusChange } from '@/lib/orders/events'
 import { processRefund } from './refunds'
 
-export type VerifiedVia = 'checkout_signature' | 'webhook' | 'simulator'
+/** status_check = looked up via Razorpay's API after a missed callback/webhook */
+export type VerifiedVia = 'checkout_signature' | 'webhook' | 'status_check' | 'simulator'
 
 export interface ConfirmPaymentInput {
   gatewayOrderId: string
