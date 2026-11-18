@@ -7,7 +7,7 @@ export default function PrivacyPage() {
   return (
     <ProsePage
       title="Privacy Policy"
-      intro="Template policy for the pilot. Your college should review and adapt it before launch."
+      intro="How CampusBite (GetCampusBite) collects and uses your information. Last updated 18 November 2026."
     >
       <section>
         <h2>What we collect</h2>
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
       </section>
       <section>
         <h2>Contact</h2>
-        <p>Questions about your data: canteen@college.edu.</p>
+        <p>Questions about your data: easalajagadeesh@gmail.com.</p>
       </section>
     </ProsePage>
   )

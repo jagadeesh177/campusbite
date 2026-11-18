@@ -238,7 +238,7 @@ export default async function LandingPage() {
             <ul className="space-y-4 text-[15px]">
               <li className="flex items-start gap-3">
                 <Mail className="mt-0.5 h-5 w-5 text-accent" aria-hidden />
-                <a href="mailto:canteen@college.edu" className="hover:underline">canteen@college.edu</a>
+                <a href="mailto:easalajagadeesh@gmail.com" className="hover:underline">easalajagadeesh@gmail.com</a>
               </li>
               <li className="flex items-start gap-3">
                 <Phone className="mt-0.5 h-5 w-5 text-accent" aria-hidden />

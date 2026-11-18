@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: 'Support' }
 
 export default function SupportPage() {
   return (
-    <ProsePage title="Support" intro="Answers to common questions. Still stuck? Email canteen@college.edu.">
+    <ProsePage title="Support" intro="Answers to common questions. Still stuck? Email easalajagadeesh@gmail.com.">
       <section>
         <h2>I can&apos;t activate my account</h2>
         <p>
@@ -36,7 +36,7 @@ export default function SupportPage() {
       <section>
         <h2>Contact</h2>
         <p>
-          Email <a className="font-medium text-primary underline" href="mailto:canteen@college.edu">canteen@college.edu</a> with
+          Email <a className="font-medium text-primary underline" href="mailto:easalajagadeesh@gmail.com">easalajagadeesh@gmail.com</a> with
           your order number (it starts with <strong>CB-</strong>) and we&apos;ll get back to you.
         </p>
       </section>

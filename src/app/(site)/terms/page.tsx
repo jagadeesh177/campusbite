@@ -7,7 +7,7 @@ export default function TermsPage() {
   return (
     <ProsePage
       title="Terms and Conditions"
-      intro="Template terms for the pilot. Your college should review and adapt them before launch."
+      intro="These terms apply to orders placed on CampusBite (GetCampusBite), operated by Easala Jagadeesh. Last updated 18 November 2026."
     >
       <section>
         <h2>Eligibility</h2>

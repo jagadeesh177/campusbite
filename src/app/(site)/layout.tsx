@@ -8,6 +8,8 @@ const FOOTER = [
   { href: '/support', label: 'Support' },
   { href: '/privacy', label: 'Privacy Policy' },
   { href: '/terms', label: 'Terms and Conditions' },
+  { href: '/refund-policy', label: 'Cancellation & Refunds' },
+  { href: '/shipping-policy', label: 'Pickup & Delivery' },
   { href: '/credits', label: 'Photo credits' },
 ]
 
