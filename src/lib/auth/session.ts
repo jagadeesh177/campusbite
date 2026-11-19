@@ -29,6 +29,7 @@ export interface SessionUser {
   profile: {
     externalStudentId: string | null
     enrollmentStatus: string
+    phone: string | null
   } | null
 }
 
@@ -94,6 +95,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
       ? {
           externalStudentId: u.userProfile.externalStudentId,
           enrollmentStatus: u.userProfile.enrollmentStatus,
+          phone: u.userProfile.phone,
         }
       : null,
   }

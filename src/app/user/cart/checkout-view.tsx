@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { AlertTriangle, Clock, FlaskConical, Loader2, Lock, ShieldCheck, ShoppingCart, Smartphone, Trash2 } from 'lucide-react'
-import { placeOrderAction } from '@/app/actions/user'
+import { placeOrderAction, savePhoneAction } from '@/app/actions/user'
 import { useCart } from '@/components/portal/cart-context'
 import { useServerQuote } from '@/components/user/use-quote'
-import { payWithRazorpay } from '@/components/user/razorpay'
+import { payWithRazorpay, toIndianMobile } from '@/components/user/razorpay'
 import { Card, CardBody } from '@/components/ui/card'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { EmptyState, FoodImage, Notice } from '@/components/ui/misc'
@@ -25,13 +25,15 @@ export function CheckoutView({
   tz: string
   provider: 'razorpay' | 'simulator'
   razorpayTest?: boolean
-  user: { name: string; email: string }
+  user: { name: string; email: string; phone?: string | null }
 }) {
   const cart = useCart()
   const router = useRouter()
   const { quote, error: quoteError, loading } = useServerQuote()
   const [slot, setSlot] = useState<string>('asap')
   const [busy, setBusy] = useState(false)
+  const savedPhone = toIndianMobile(user.phone)
+  const [phone, setPhone] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const timeFmt = new Intl.DateTimeFormat('en-IN', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true })
@@ -54,6 +56,11 @@ export function CheckoutView({
 
   async function pay() {
     setError(null)
+    const contact = savedPhone ?? (provider === 'razorpay' ? toIndianMobile(phone) : null)
+    if (provider === 'razorpay' && !contact) {
+      setError('Enter your 10-digit mobile number to pay.')
+      return
+    }
     setBusy(true)
     const result = await placeOrderAction({
       items: cart.lines.map((l) => ({ foodItemId: l.foodItemId, quantity: l.quantity })),
@@ -66,6 +73,7 @@ export function CheckoutView({
       return
     }
     const session = result.data
+    if (provider === 'razorpay' && !savedPhone && contact) await savePhoneAction(contact) // asked only once
     cart.clear() // order now exists server-side; payment can be retried from the order page
 
     if (session.provider === 'SIMULATOR') {
@@ -73,7 +81,7 @@ export function CheckoutView({
       return
     }
     try {
-      const outcome = await payWithRazorpay(session, user)
+      const outcome = await payWithRazorpay(session, { name: user.name, email: user.email, contact })
       // Full page load (not client navigation): the order page is re-read from
       // the server, which is the only place that decides whether it is paid.
       window.location.assign(`/user/orders/${session.orderId}${outcome === 'dismissed' ? '?payment=cancelled' : '?paid=1'}`)
@@ -158,6 +166,26 @@ export function CheckoutView({
                   <div className="font-semibold">UPI app or QR code</div>
                   <div className="text-sm text-muted">On your phone, pick GPay, PhonePe, Paytm or BHIM and it opens straight away. On a laptop, scan the QR code. Cards and net banking also work. Secured by Razorpay.</div>
                 </div>
+              </div>
+            ) : null}
+            {provider === 'razorpay' && !savedPhone ? (
+              <div className="mt-4">
+                <label htmlFor="pay-mobile" className="mb-1.5 block text-sm font-medium">Mobile number</label>
+                <div className="flex items-center rounded-xl border border-line bg-surface focus-within:border-primary">
+                  <span className="pl-3 text-muted">+91</span>
+                  <input
+                    id="pay-mobile"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    maxLength={14}
+                    placeholder="10-digit mobile"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="h-12 w-full rounded-xl bg-transparent px-2 text-base outline-none sm:text-[15px]"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-muted">Asked only once and saved to your profile, so the payment page opens straight on the payment options.</p>
               </div>
             ) : null}
             {provider === 'razorpay' && razorpayTest ? (

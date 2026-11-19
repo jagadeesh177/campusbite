@@ -133,6 +133,19 @@ export async function updateProfileAction(
   }
 }
 
+/** Saves the mobile number asked for at first checkout (used to prefill Razorpay). */
+export async function savePhoneAction(phone: string): Promise<ActionResult> {
+  try {
+    const actor = await requireActor('USER')
+    const digits = String(phone ?? '').replace(/\D/g, '').slice(-10)
+    if (!/^[6-9]\d{9}$/.test(digits)) return { ok: false, error: 'Enter a valid 10-digit mobile number.' }
+    await db.userProfile.update({ where: { userId: actor.userId }, data: { phone: `+91${digits}` } })
+    return { ok: true, data: undefined }
+  } catch (e) {
+    return toActionError(e)
+  }
+}
+
 export async function markNotificationsReadAction(): Promise<void> {
   const actor = await requireActor('USER')
   await db.notification.updateMany({ where: { userId: actor.userId, readAt: null }, data: { readAt: new Date() } })

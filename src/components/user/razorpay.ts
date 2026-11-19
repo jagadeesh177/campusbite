@@ -8,6 +8,13 @@ declare global {
   }
 }
 
+/** 10-digit Indian mobile as +91XXXXXXXXXX, or null if it isn't one. */
+export function toIndianMobile(raw: string | null | undefined): string | null {
+  const digits = (raw ?? '').replace(/\D/g, '')
+  const ten = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits.length === 11 && digits.startsWith('0') ? digits.slice(1) : digits
+  return /^[6-9]\d{9}$/.test(ten) ? `+91${ten}` : null
+}
+
 function loadScript(): Promise<void> {
   if (window.Razorpay) return Promise.resolve()
   return new Promise((resolve, reject) => {
@@ -27,8 +34,9 @@ function loadScript(): Promise<void> {
  */
 export async function payWithRazorpay(
   session: CheckoutSession,
-  prefill: { name: string; email: string },
+  prefill: { name: string; email: string; contact?: string | null },
 ): Promise<'verified' | 'pending' | 'dismissed'> {
+  const contact = toIndianMobile(prefill.contact)
   await loadScript()
   return new Promise((resolve, reject) => {
     const rzp = new window.Razorpay!({
@@ -40,7 +48,9 @@ export async function payWithRazorpay(
       timeout: Math.max(60, Math.floor((new Date(session.payBy).getTime() - Date.now()) / 1000)),
       name: 'CampusBite',
       description: `Order ${session.orderNumber}`,
-      prefill,
+      prefill: { name: prefill.name, email: prefill.email, ...(contact ? { contact } : {}) },
+      // We already know the customer's email and mobile: skip Razorpay's contact step
+      ...(contact ? { readonly: { email: true, contact: true }, hidden: { email: true, contact: true } } : {}),
       theme: { color: '#173F35' },
       // UPI first: on phones Razorpay lists the UPI apps installed on the
       // device (GPay, PhonePe, Paytm, BHIM…) and opens the chosen one directly;

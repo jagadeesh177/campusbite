@@ -17,7 +17,7 @@ export default async function CartPage() {
         tz={env.timezone}
         provider={env.paymentProvider === 'razorpay' ? 'razorpay' : 'simulator'}
         razorpayTest={env.paymentProvider === 'razorpay' && razorpayMode(env.razorpay.keyId) === 'test'}
-        user={{ name: user.name, email: user.email }}
+        user={{ name: user.name, email: user.email, phone: user.profile?.phone ?? null }}
       />
     </>
   )

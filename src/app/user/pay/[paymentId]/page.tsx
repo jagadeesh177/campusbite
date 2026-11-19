@@ -48,7 +48,7 @@ export default async function PayPage({ params }: { params: Promise<{ paymentId:
             {payment.provider === 'SIMULATOR' ? (
               <SimulatorPanel paymentId={payment.id} orderId={order.id} amountPaise={amountPaise} />
             ) : (
-              <RazorpayRetry session={await getCheckoutSession(toActor(user), order.id)} user={{ name: user.name, email: user.email }} />
+              <RazorpayRetry session={await getCheckoutSession(toActor(user), order.id)} user={{ name: user.name, email: user.email, phone: user.profile?.phone ?? null }} />
             )}
           </div>
           <p className="mt-4 text-center text-xs text-subtle">Unpaid orders expire after 30 minutes.</p>
