@@ -60,3 +60,18 @@ export async function authenticate(
   }
   return { userId: user.id, role: user.role, mustChangePassword: user.mustChangePassword }
 }
+
+/**
+ * One sign-in for everyone (users, staff, canteen). The role always comes from
+ * the database; nobody picks a portal or a role. Same error for unknown email,
+ * wrong password or a user who hasn't finished setting up.
+ */
+export async function authenticateAny(
+  input: { email: string; password: string },
+  ip: string | null,
+): Promise<{ userId: string; role: Role; mustChangePassword: boolean }> {
+  const parsed = loginSchema.safeParse(input)
+  if (!parsed.success) throw new AppError('VALIDATION', 'Enter your email and password.')
+  const known = await db.user.findUnique({ where: { email: parsed.data.email }, select: { role: true } })
+  return authenticate(known?.role ?? 'USER', parsed.data, ip)
+}

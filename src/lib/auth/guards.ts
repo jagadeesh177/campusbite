@@ -20,9 +20,9 @@ export const PORTAL_HOME: Record<Role, string> = {
 }
 
 export const PORTAL_LOGIN: Record<Role, string> = {
-  USER: '/login/user',
-  STAFF: '/login/staff',
-  CANTEEN: '/login/canteen',
+  USER: '/login',
+  STAFF: '/login',
+  CANTEEN: '/login',
 }
 
 export function toActor(u: SessionUser): Actor {

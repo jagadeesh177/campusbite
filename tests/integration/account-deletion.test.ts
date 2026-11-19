@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/auth/supabase', async () => (await import('../fake-supabase')).fakeSupabaseModule)
 
 const { fake } = await import('../fake-supabase')
-const { completeUserLink, registerUser } = await import('@/lib/auth/user-auth')
+const { completeUserLink, inviteUser } = await import('@/lib/auth/user-auth')
 const { deleteOwnAccount, isDeletedAccountEmail } = await import('@/lib/account-deletion')
 const { setUserAccess } = await import('@/lib/admin')
 const { authenticate } = await import('@/lib/auth/login')
@@ -21,7 +21,7 @@ async function expectAppError(p: Promise<unknown>, code: InstanceType<typeof App
 
 /** A fully registered Supabase user */
 async function registered(email = 'asha@gmail.com') {
-  await registerUser({ email, fullName: 'Asha Kumar', phone: '9876543210' }, null)
+  await inviteUser((await createStaff(['USERS'])).actor, { email, fullName: 'Asha Kumar', phone: '9876543210' })
   const { userId } = await completeUserLink({ tokenHash: fake.lastTo(email)!.tokenHash, type: 'email', password: PW, confirmPassword: PW }, null)
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
   return { user, actor: { userId, role: 'USER' as const, name: user.name, permissions: [] } }
@@ -37,7 +37,7 @@ describe('delete account', () => {
     const { actor } = await registered()
     await expectAppError(deleteOwnAccount(actor, { password: PW, confirm: 'delete me' }), 'VALIDATION', /Type DELETE/)
     await expectAppError(deleteOwnAccount(actor, { password: 'Wrong1234', confirm: 'DELETE' }), 'UNAUTHORIZED', /Incorrect password/)
-    expect(await prisma.user.count()).toBe(1)
+    expect(await prisma.user.count({ where: { role: 'USER' } })).toBe(1)
   })
 
   it('without orders: removes the account and the Supabase login completely', async () => {
@@ -69,8 +69,8 @@ describe('delete account', () => {
     expect(await prisma.userProfile.count({ where: { userId: user.id } })).toBe(0)
     const order = await prisma.order.findUniqueOrThrow({ where: { id: co.orderId } })
     expect(order.status).toBe('CANCELLED') // was unpaid
-    // the email can be used to register again
-    await registerUser({ email: 'asha@gmail.com', fullName: 'Asha Again', phone: '9876543210' }, null)
+    // staff can create a new account for the same email again
+    await inviteUser((await createStaff(['USERS'])).actor, { email: 'asha@gmail.com', fullName: 'Asha Again', phone: '9876543210' })
     expect(fake.lastTo('asha@gmail.com')).toBeTruthy()
   })
 

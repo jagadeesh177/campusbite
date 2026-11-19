@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/auth/supabase', async () => (await import('../fake-supabase')).fakeSupabaseModule)
 
 const { fake } = await import('../fake-supabase')
-const { completeUserLink, registerUser } = await import('@/lib/auth/user-auth')
+const { completeUserLink, inviteUser } = await import('@/lib/auth/user-auth')
 const { changeOwnPassword } = await import('@/lib/auth/change-password')
 const { authenticate } = await import('@/lib/auth/login')
 const { AppError } = await import('@/lib/errors')
-const { createUser, prisma, resetDb, TEST_PASSWORD } = await import('../helpers')
+const { createStaff, createUser, prisma, resetDb, TEST_PASSWORD } = await import('../helpers')
 
 const PW = 'Campus2026!'
 const NEW = 'Brand2026New'
@@ -17,7 +17,7 @@ async function expectAppError(p: Promise<unknown>, code: InstanceType<typeof App
 }
 
 async function registered(email = 'asha@gmail.com') {
-  await registerUser({ email, fullName: 'Asha Kumar', phone: '9876543210', department: 'CSE' }, null)
+  await inviteUser((await createStaff(['USERS'])).actor, { email, fullName: 'Asha Kumar', phone: '9876543210', department: 'CSE' })
   const { userId } = await completeUserLink({ tokenHash: fake.lastTo(email)!.tokenHash, type: 'email', password: PW, confirmPassword: PW }, null)
   return userId
 }

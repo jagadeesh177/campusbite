@@ -1,38 +1,33 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
-import { ArrowRight, ChefHat, GraduationCap, ShieldCheck } from 'lucide-react'
 import { AuthShell } from '@/components/auth/auth-shell'
+import { LoginForm } from '@/components/auth/login-form'
+import { redirectIfSignedIn } from '@/components/auth/redirect-if-signed-in'
+import { ACCOUNT_NOT_FOUND } from '@/lib/auth/google'
 
-export const metadata: Metadata = { title: 'Login' }
+export const metadata: Metadata = { title: 'Sign in' }
+export const dynamic = 'force-dynamic'
 
-const PORTALS = [
-  { href: '/login/user', Icon: GraduationCap, title: 'User', text: 'Order food and track your orders' },
-  { href: '/login/canteen', Icon: ChefHat, title: 'Canteen', text: 'Manage incoming orders and pickups' },
-  { href: '/login/staff', Icon: ShieldCheck, title: 'Staff & Admin', text: 'Reports, payments and accounts' },
-]
+const NOTICES: Record<string, { tone: 'danger' | 'success' | 'info'; text: string }> = {
+  account_not_found: { tone: 'danger', text: ACCOUNT_NOT_FOUND },
+  deactivated: { tone: 'danger', text: 'This account has been deactivated. Please contact the administrator.' },
+  google_failed: { tone: 'danger', text: 'Google sign-in didn’t complete. Please try again.' },
+  google_cancelled: { tone: 'info', text: 'Google sign-in was cancelled.' },
+  google_unavailable: { tone: 'danger', text: 'Google sign-in isn’t available right now. Use your email and password.' },
+  rate_limited: { tone: 'danger', text: 'Too many attempts. Please wait a few minutes and try again.' },
+  reset: { tone: 'success', text: 'Your password has been changed. Sign in with your new password.' },
+}
 
-export default function LoginChooserPage() {
+/** The one sign-in page for users, staff and canteen. No sign-up. */
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; reset?: string }> }) {
+  await redirectIfSignedIn()
+  const sp = await searchParams
+  const notice = sp.error ? NOTICES[sp.error] : sp.reset ? NOTICES.reset : undefined
   return (
-    <AuthShell title="Welcome to CampusBite" subtitle="Choose how you’d like to sign in.">
-      <ul className="space-y-3">
-        {PORTALS.map(({ href, Icon, title, text }) => (
-          <li key={href}>
-            <Link
-              href={href}
-              className="group flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 shadow-card transition hover:border-accent/50 hover:shadow-lift"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-soft text-primary group-hover:bg-primary group-hover:text-white">
-                <Icon className="h-6 w-6" aria-hidden />
-              </span>
-              <span className="flex-1">
-                <span className="block font-semibold text-ink">{title}</span>
-                <span className="block text-sm text-muted">{text}</span>
-              </span>
-              <ArrowRight className="h-5 w-5 text-muted transition group-hover:translate-x-0.5 group-hover:text-primary" />
-            </Link>
-          </li>
-        ))}
-      </ul>
+    <AuthShell title="Welcome Back" subtitle="Sign in to your CampusBite account.">
+      <LoginForm notice={notice} />
+      <p className="mt-8 text-center text-xs text-subtle">
+        Accounts are created by the CampusBite administrator. Need access? Contact the canteen office.
+      </p>
     </AuthShell>
   )
 }

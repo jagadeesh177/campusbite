@@ -37,9 +37,13 @@ export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
 }
 
-export async function createSession(userId: string, role: Role): Promise<void> {
+/** Without "Remember me" the cookie ends with the browser and the session lasts at most 12 hours. */
+const SHORT_SESSION_MS = 12 * 60 * 60 * 1000
+
+export async function createSession(userId: string, role: Role, opts: { remember?: boolean } = {}): Promise<void> {
+  const remember = opts.remember ?? true
   const token = randomBytes(32).toString('base64url')
-  const expiresAt = new Date(Date.now() + TTL_MS[role])
+  const expiresAt = new Date(Date.now() + (remember ? TTL_MS[role] : Math.min(TTL_MS[role], SHORT_SESSION_MS)))
   const { ip, userAgent } = await getClientInfo()
   await db.session.create({
     data: { tokenHash: hashToken(token), userId, expiresAt, ip, userAgent },
@@ -50,7 +54,7 @@ export async function createSession(userId: string, role: Role): Promise<void> {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    expires: expiresAt,
+    ...(remember ? { expires: expiresAt } : {}), // no expiry = browser-session cookie
   })
 }
 

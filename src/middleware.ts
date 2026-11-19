@@ -5,9 +5,9 @@ import { NextResponse, type NextRequest } from 'next/server'
 // every portal layout, page, server action and API route.
 
 const PORTALS: Record<string, string> = {
-  '/user': '/login/user',
-  '/canteen': '/login/canteen',
-  '/staff': '/login/staff',
+  '/user': '/login',
+  '/canteen': '/login',
+  '/staff': '/login',
 }
 
 export function middleware(req: NextRequest) {

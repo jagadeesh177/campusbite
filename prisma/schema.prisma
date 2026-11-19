@@ -101,6 +101,8 @@ model User {
   staffProfile     StaffProfile?
   canteenProfile   CanteenProfile?
   sessions         Session[]
+  passwordResets   PasswordReset[]
+  recoverySessions RecoverySession[]
   orders           Order[]
   notifications    Notification[]
   auditLogs        AuditLog[]           @relation("AuditActor")
@@ -154,6 +156,40 @@ model CanteenProfile {
   permissions String[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+/// One "forgot password" request. Its 15-minute window starts when the email is
+/// requested; a newer request revokes older ones (and their recovery sessions).
+model PasswordReset {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestedAt DateTime          @default(now())
+  expiresAt   DateTime
+  /// When the emailed link was first verified
+  usedAt      DateTime?
+  revokedAt   DateTime?
+  sessions    RecoverySession[]
+
+  @@index([userId, requestedAt])
+}
+
+/// Short-lived session created after a recovery link is verified. Lets the user
+/// change their password (more than once) until the reset's 15-minute window ends.
+model RecoverySession {
+  id              String        @id @default(cuid())
+  /// SHA-256 of the random token kept in an HTTP-only cookie
+  tokenHash       String        @unique
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordResetId String
+  passwordReset   PasswordReset @relation(fields: [passwordResetId], references: [id], onDelete: Cascade)
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  passwordChanges Int           @default(0)
+  createdAt       DateTime      @default(now())
+
+  @@index([userId])
 }
 
 model Session {

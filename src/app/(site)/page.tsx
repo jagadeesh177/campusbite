@@ -48,7 +48,7 @@ const FEATURES = [
   { Icon: Smartphone, title: 'Online UPI payments', text: 'Pay with any UPI app. No cash, no change, no hassle.' },
   { Icon: Bell, title: 'Live order tracking', text: 'Watch your order move from accepted to ready in real time.' },
   { Icon: Clock, title: 'Easy pickup', text: 'Choose a pickup slot and collect with a one-time pickup code.' },
-  { Icon: GraduationCap, title: 'Verified accounts', text: 'Sign up with any personal email — every account is verified by a one-time link.' },
+  { Icon: GraduationCap, title: 'Verified accounts', text: 'Accounts are created by the canteen office. Sign in with Google or your email and password.' },
 ]
 
 export default async function LandingPage() {
@@ -77,7 +77,7 @@ export default async function LandingPage() {
               when it&apos;s ready.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <ButtonLink href="/login/user" size="xl" className="px-7">
+              <ButtonLink href="/login" size="xl" className="px-7">
                 Order Food <ArrowRight className="h-5 w-5" />
               </ButtonLink>
               <ButtonLink href="#how-it-works" variant="secondary" size="xl" className="px-7">
@@ -201,7 +201,7 @@ export default async function LandingPage() {
               CampusBite takes the queue out of your lunch break — and gives the kitchen a calm, organised way to work
               through the rush.
             </p>
-            <ButtonLink href="/login/user" size="lg" className="mt-8">
+            <ButtonLink href="/login" size="lg" className="mt-8">
               Start ordering <ArrowRight className="h-4 w-4" />
             </ButtonLink>
           </div>

@@ -15,7 +15,7 @@ export const PASSWORD_RULES = [
   { label: 'At least one number', test: (p: string) => /\d/.test(p) },
 ]
 
-function strength(p: string): { score: 0 | 1 | 2 | 3 | 4; label: string } {
+export function strength(p: string): { score: 0 | 1 | 2 | 3 | 4; label: string } {
   if (!p) return { score: 0, label: '' }
   let s = PASSWORD_RULES.filter((r) => r.test(p)).length
   if (p.length >= 12 && /[^A-Za-z0-9]/.test(p)) s++
@@ -50,7 +50,7 @@ export function SetPasswordForm({
       {state?.error && (
         <Notice tone="danger">
           {state.error}{' '}
-          <a href={purpose === 'ACTIVATION' ? '/activate' : '/forgot-password'} className="font-semibold underline">
+          <a href="/forgot-password" className="font-semibold underline">
             Request a new link
           </a>
         </Notice>

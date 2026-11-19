@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { SetPasswordForm } from './set-password-form'
+import { RecoveryContinue } from './recovery-continue'
 
 type Parsed =
   | { kind: 'loading' }
@@ -34,7 +35,10 @@ export function HashConfirm({ invalid }: { invalid: React.ReactNode }) {
 
   if (parsed.kind === 'loading') return <p className="text-center text-sm text-muted">Checking your link…</p>
   if (parsed.kind === 'error') return <>{invalid}</>
-  const reset = parsed.type === 'recovery'
+  if (parsed.type === 'recovery') {
+    return <RecoveryContinue session={{ accessToken: parsed.accessToken, refreshToken: parsed.refreshToken }} />
+  }
+  const reset = false
   return (
     <>
       <h2 className="mb-1 text-xl font-semibold">{reset ? 'Choose a new password' : 'Create Your Password'}</h2>

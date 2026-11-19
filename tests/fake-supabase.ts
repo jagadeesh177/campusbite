@@ -14,6 +14,8 @@ export const fake = {
   tokens: new Map<string, FakeToken>(),
   sent: [] as SentEmail[],
   sessions: new Map<string, { email: string; refresh: string; revoked: boolean }>(),
+  /** Google sign-in: authorization code → Google-verified email */
+  googleCodes: new Map<string, string>(),
   failNextSend: false,
   configured: true,
   ttlMs: 15 * 60_000,
@@ -22,6 +24,7 @@ export const fake = {
     this.tokens.clear()
     this.sent = []
     this.sessions.clear()
+    this.googleCodes.clear()
     this.failNextSend = false
     this.configured = true
   },
@@ -36,6 +39,12 @@ export const fake = {
     this.sessions.set(access, { email: t.email, refresh, revoked: false })
     return { accessToken: access, refreshToken: refresh, type: t.kind === 'recovery' ? 'recovery' : 'signup' }
   },
+  /** What Google + Supabase do when someone picks this Google account: an authorization code for the callback. */
+  googleCode(email: string) {
+    const code = `gc_${randomBytes(8).toString('hex')}`
+    this.googleCodes.set(code, email.toLowerCase())
+    return code
+  },
   lastTo(email: string) {
     return [...this.sent].reverse().find((m) => m.to === email)
   },
@@ -47,6 +56,13 @@ function issue(email: string, kind: 'email' | 'recovery', redirectTo?: string) {
   const tokenHash = randomBytes(28).toString('hex')
   fake.tokens.set(tokenHash, { email, kind, expiresAt: Date.now() + fake.ttlMs, used: false })
   fake.sent.push({ to: email, kind, tokenHash, redirectTo })
+}
+
+function mintSession(email: string) {
+  const access = `at_${randomBytes(16).toString('hex')}`
+  const refresh = `rt_${randomBytes(8).toString('hex')}`
+  fake.sessions.set(access, { email, refresh, revoked: false })
+  return { access_token: access, refresh_token: refresh }
 }
 
 function publicUser(u: FakeUser) {
@@ -89,7 +105,7 @@ export function createFakeClient() {
         const u = fake.users.get(t.email)!
         u.confirmed = true
         current = u
-        return { data: { user: publicUser(u), session: { access_token: 'x' } }, error: null }
+        return { data: { user: publicUser(u), session: mintSession(u.email) }, error: null }
       },
       async updateUser({ password }: { password: string }) {
         if (!current) return { data: { user: null }, error: err('session_not_found', 401) }
@@ -109,8 +125,9 @@ export function createFakeClient() {
         if (!sess || sess.revoked || sess.refresh !== refresh_token) {
           return { data: { user: null, session: null }, error: err('session_not_found', 403) }
         }
+        if (!fake.users.has(sess.email)) return { data: { user: null, session: null }, error: err('user_not_found', 403) }
         current = fake.users.get(sess.email)!
-        return { data: { user: publicUser(current), session: { access_token } }, error: null }
+        return { data: { user: publicUser(current), session: { access_token, refresh_token } }, error: null }
       },
       async signOut() {
         if (current) for (const sess of fake.sessions.values()) if (sess.email === current.email) sess.revoked = true
@@ -127,7 +144,46 @@ export function createFakeClient() {
   }
 }
 
+/** Google sign-in client (PKCE): the verifier must survive from start to callback, like the real flow. */
+export function createFakePkceClient(storage: Map<string, string>) {
+  const base = createFakeClient()
+  let current: FakeUser | null = null
+  return {
+    ...base,
+    auth: {
+      ...base.auth,
+      async signInWithOAuth({ provider }: { provider: string; options?: Record<string, unknown> }) {
+        storage.set('sb-test-auth-token-code-verifier', randomBytes(16).toString('hex'))
+        return { data: { provider, url: `https://accounts.google.com/o/oauth2/v2/auth?client=test` }, error: null }
+      },
+      async exchangeCodeForSession(code: string) {
+        const email = fake.googleCodes.get(code)
+        if (!email || !storage.get('sb-test-auth-token-code-verifier')) return { data: { user: null, session: null }, error: err('bad_code_verifier') }
+        fake.googleCodes.delete(code)
+        // Supabase creates (or links to) the user for a Google-verified email
+        let u = fake.users.get(email)
+        if (!u) {
+          u = { id: `sb-${randomBytes(6).toString('hex')}`, email, confirmed: true, metadata: { provider: 'google' } }
+          fake.users.set(email, u)
+        }
+        current = u
+        return { data: { user: publicUser(u), session: mintSession(email) }, error: null }
+      },
+      async signOut() {
+        current = null
+        return { error: null }
+      },
+    },
+    async rpc(fn: string) {
+      if (fn !== 'delete_own_user' || !current) return { data: null, error: err('not_allowed', 401) }
+      fake.users.delete(current.email)
+      return { data: null, error: null }
+    },
+  }
+}
+
 export const fakeSupabaseModule = {
   supabaseConfig: () => ({ url: 'https://test.supabase.co', key: 'test', configured: fake.configured }),
   createSupabaseAuthClient: () => createFakeClient(),
+  createSupabasePkceClient: (storage: Map<string, string>) => createFakePkceClient(storage),
 }

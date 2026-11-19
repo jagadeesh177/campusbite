@@ -41,9 +41,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
           <div>
             <h2 className="text-sm font-semibold text-ink">Portals</h2>
             <ul className="mt-3 space-y-2">
-              <li><Link href="/login/user" className="text-sm text-muted hover:text-primary">User login</Link></li>
-              <li><Link href="/login/canteen" className="text-sm text-muted hover:text-primary">Canteen login</Link></li>
-              <li><Link href="/login/staff" className="text-sm text-muted hover:text-primary">Staff login</Link></li>
+              <li><Link href="/login" className="text-sm text-muted hover:text-primary">Sign in</Link></li>
             </ul>
           </div>
         </div>

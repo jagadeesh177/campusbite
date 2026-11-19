@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { toActionError, type ActionResult } from '@/lib/errors'
 import { requireActor } from '@/lib/auth/guards'
+import { inviteUser } from '@/lib/auth/user-auth'
 import { createAccount, resetAccountPassword, setAccountStatus, setUserAccess, updateAccountPermissions } from '@/lib/admin'
 import { changeOrderStatus } from '@/lib/orders/transitions'
 import { confirmRefundCredited, createPartialRefund, processRefund, syncRefund } from '@/lib/payments/refunds'
@@ -145,6 +146,24 @@ export async function staffCancelOrderAction(orderId: string, reason: string): P
     await changeOrderStatus(actor, { orderId, to: 'REFUND_PENDING', reason })
     revalidatePath('/staff/payments')
     return { ok: true, data: undefined, message: 'Order cancelled and refund started.' }
+  } catch (e) {
+    return toActionError(e)
+  }
+}
+
+/** Staff-only account creation for customers (there is no public sign-up). */
+export async function inviteUserAction(_prev: ActionResult<{ email: string }> | undefined, formData: FormData): Promise<ActionResult<{ email: string }>> {
+  try {
+    const actor = await requireActor('STAFF', 'USERS')
+    const email = String(formData.get('email') ?? '').trim().toLowerCase()
+    await inviteUser(actor, {
+      email,
+      fullName: String(formData.get('fullName') ?? ''),
+      phone: String(formData.get('phone') ?? '') || undefined,
+      department: String(formData.get('department') ?? '') || undefined,
+    })
+    revalidatePath('/staff/users')
+    return { ok: true, data: { email } }
   } catch (e) {
     return toActionError(e)
   }

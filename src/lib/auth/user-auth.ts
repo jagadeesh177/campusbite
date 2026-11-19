@@ -9,14 +9,15 @@ import { passwordSchema } from './password'
 import { createSupabaseAuthClient, supabaseConfig } from './supabase'
 
 /**
- * User self-registration with ANY personal email, backed by Supabase Auth.
+ * User accounts (Supabase Auth). There is NO public sign-up:
  *
- *  1. registerUser      → pending CampusBite account + Supabase emails an activation link
- *  2. completeUserLink  → link verified by Supabase (single use, expires), password set,
- *                            account activated with the USER role (assigned here, server-side)
+ *  1. inviteUser        → STAFF (USERS permission) creates a pending account; Supabase
+ *                          emails an activation link
+ *  2. completeUserLink  → the invited user opens the link (single use, expires) and sets a
+ *                          password; only an existing pending account can be activated
  *  3. authenticateUser  → Supabase checks the password, CampusBite issues its own session
- *
- * No college email rule and no college database lookup is involved.
+ *  Users may also sign in with Google (src/lib/auth/google.ts) — sign-in only.
+ *  Password recovery: src/lib/auth/recovery.ts.
  */
 
 /** One email per address per 15 minutes; the link itself also expires (Supabase "Email OTP expiry"). */
@@ -24,20 +25,23 @@ export const EMAIL_COOLDOWN_MINUTES = 15
 
 const email = z.string().trim().toLowerCase().max(254).email('Enter a valid email address')
 
-export const registrationSchema = z.object({
+export const invitationSchema = z.object({
   email,
-  fullName: z.string().trim().min(2, 'Enter your full name').max(80, 'Name is too long'),
+  fullName: z.string().trim().min(2, 'Enter the full name').max(80, 'Name is too long'),
   phone: z
     .string()
     .trim()
     .transform((v) => v.replace(/[\s-]/g, '').replace(/^(\+91|91|0)(?=\d{10}$)/, ''))
-    .pipe(z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number')),
+    .pipe(z.string().regex(/^([6-9]\d{9})?$/, 'Enter a valid 10-digit mobile number'))
+    .optional()
+    .transform((v) => (v ? `+91${v}` : undefined)),
   department: z.string().trim().max(80).optional().transform((v) => v || undefined),
 })
 
 export const emailOnlySchema = z.object({ email })
 
-const LINK_TYPES = ['email', 'recovery', 'signup', 'magiclink', 'invite'] as const
+// Activation links only — recovery links go through src/lib/auth/recovery.ts
+const LINK_TYPES = ['email', 'signup', 'magiclink', 'invite'] as const
 export type LinkType = (typeof LINK_TYPES)[number]
 
 export const completeLinkSchema = z
@@ -56,7 +60,7 @@ export const completeLinkSchema = z
 
 function requireSupabase() {
   if (!supabaseConfig().configured) {
-    throw new AppError('UNAVAILABLE', 'User sign-up is temporarily unavailable. Please try again later.')
+    throw new AppError('UNAVAILABLE', 'Account emails are temporarily unavailable. Please try again later.')
   }
 }
 
@@ -92,104 +96,69 @@ async function logRequest(action: string, address: string, outcome: string) {
   await audit({ action, entityType: 'User', metadata: { outcome, email: address } })
 }
 
-/** Step 1 — register (or resend the activation email for a pending registration). */
-export async function registerUser(
-  input: { email: string; fullName: string; phone: string; department?: string },
-  ip: string | null,
-): Promise<void> {
-  const parsed = registrationSchema.safeParse(input)
+async function sendActivation(address: string, name: string) {
+  const { error } = await createSupabaseAuthClient().auth.signInWithOtp({
+    email: address,
+    options: { shouldCreateUser: true, emailRedirectTo: confirmUrl(), data: { full_name: name } },
+  })
+  return error
+}
+
+/**
+ * Step 1 — staff create a user account (no self-registration). The account
+ * stays pending until the user sets a password from the emailed link, or signs
+ * in with Google using the same email.
+ */
+export async function inviteUser(
+  actor: { userId: string; role: string; permissions?: string[] },
+  input: { email: string; fullName: string; phone?: string; department?: string },
+): Promise<{ userId: string }> {
+  if (actor.role !== 'STAFF' || !actor.permissions?.includes('USERS')) {
+    throw new AppError('FORBIDDEN', 'You do not have permission to create user accounts.')
+  }
+  const parsed = invitationSchema.safeParse(input)
   if (!parsed.success) throw new AppError('VALIDATION', parsed.error.issues[0]?.message ?? 'Check the form and try again.')
   const { email: address, fullName, phone, department } = parsed.data
   requireSupabase()
-  const cooldownKey = await cooldown('activation', address, ip)
+  const existing = await db.user.findUnique({ where: { email: address } })
+  if (existing) throw new AppError('CONFLICT', 'An account with this email already exists.')
 
-  const existing = await db.user.findUnique({ where: { email: address }, include: { userProfile: true } })
-  // Staff/canteen emails can never become user accounts; active users should sign in.
-  // The response stays the same ("check your inbox") so the form never reveals who has an account.
-  if (existing && (existing.role !== 'USER' || existing.status !== 'PENDING_VERIFICATION')) {
-    await logRequest('user.registration_requested', address,
-      existing.role !== 'USER' ? 'not_a_user_account' : existing.status === 'ACTIVE' ? 'already_registered' : 'deactivated')
-    return
-  }
-
-  // Pending CampusBite account — cannot sign in until the email is verified and a password is set
-  if (existing) {
-    await db.user.update({
-      where: { id: existing.id },
-      data: {
-        name: fullName,
-        userProfile: existing.userProfile
-          ? { update: { phone, department: department ?? null } }
-          : { create: { phone, department, integrationSource: 'supabase' } },
-      },
-    })
-  } else {
-    await db.user.create({
-      data: {
-        email: address,
-        name: fullName,
-        role: 'USER', // assigned by the server, never taken from the form
-        status: 'PENDING_VERIFICATION',
-        userProfile: { create: { phone, department, integrationSource: 'supabase' } },
-      },
-    })
-  }
-
-  const { error } = await createSupabaseAuthClient().auth.signInWithOtp({
-    email: address,
-    options: { shouldCreateUser: true, emailRedirectTo: confirmUrl(), data: { full_name: fullName } },
+  const user = await db.user.create({
+    data: {
+      email: address,
+      name: fullName,
+      role: 'USER', // assigned by the server, never taken from a form
+      status: 'PENDING_VERIFICATION',
+      userProfile: { create: { phone, department, integrationSource: 'supabase' } },
+    },
   })
+  await rateLimit(`user-email:activation:${address}`, 1, EMAIL_COOLDOWN_MINUTES * 60)
+  const error = await sendActivation(address, fullName)
   if (error) {
-    await releaseCooldown(cooldownKey)
-    await logRequest('user.registration_requested', address, 'email_delivery_failed')
+    await db.rateLimitBucket.deleteMany({ where: { key: `user-email:activation:${address}` } })
+    await audit({ actor: { userId: actor.userId, role: 'STAFF' }, action: 'user.invited', entityType: 'User', entityId: user.id, metadata: { outcome: 'email_delivery_failed' } })
     sendFailure(error)
   }
-  await logRequest('user.registration_requested', address, 'link_sent')
+  await audit({ actor: { userId: actor.userId, role: 'STAFF' }, action: 'user.invited', entityType: 'User', entityId: user.id, metadata: { outcome: 'link_sent' } })
+  return { userId: user.id }
 }
 
-/** Users only. Sends a single-use reset link; silent for unknown / non-user emails. */
-export async function requestUserPasswordReset(rawEmail: string, ip: string | null): Promise<void> {
+/** Resend the activation email to a pending, staff-created account (silent for everything else). */
+export async function resendInvitation(rawEmail: string, ip: string | null): Promise<void> {
   const parsed = emailOnlySchema.safeParse({ email: rawEmail })
   if (!parsed.success) throw new AppError('VALIDATION', 'Enter a valid email address.')
   const address = parsed.data.email
   requireSupabase()
-  const cooldownKey = await cooldown('reset', address, ip)
-
   const user = await db.user.findUnique({ where: { email: address } })
-
-  // Signed up but never finished activation: they have no password yet, so send the
-  // activation link again — it lets them set a password and finish (was silently ignored).
-  if (user && user.role === 'USER' && user.status === 'PENDING_VERIFICATION') {
-    const { error } = await createSupabaseAuthClient().auth.signInWithOtp({
-      email: address,
-      options: { shouldCreateUser: true, emailRedirectTo: confirmUrl(), data: { full_name: user.name } },
-    })
-    if (error) {
-      await releaseCooldown(cooldownKey)
-      await logRequest('user.password_reset_requested', address, 'email_delivery_failed')
-      sendFailure(error)
-    }
-    await logRequest('user.password_reset_requested', address, 'activation_link_resent')
-    return
-  }
-
-  if (!user || user.role !== 'USER' || user.status !== 'ACTIVE') {
-    await logRequest('user.password_reset_requested', address, 'no_active_user_account')
-    return
-  }
-
-  const sb = createSupabaseAuthClient().auth
-  // Users created before Supabase (no Supabase user yet) get a one-time sign-in link instead,
-  // which lands on the same "set a new password" page and links the account to Supabase.
-  const { error } = user.supabaseUserId
-    ? await sb.resetPasswordForEmail(address, { redirectTo: confirmUrl() })
-    : await sb.signInWithOtp({ email: address, options: { shouldCreateUser: true, emailRedirectTo: confirmUrl(), data: { full_name: user.name } } })
+  if (!user || user.role !== 'USER' || user.status !== 'PENDING_VERIFICATION') return
+  const cooldownKey = await cooldown('activation', address, ip)
+  const error = await sendActivation(address, user.name)
   if (error) {
     await releaseCooldown(cooldownKey)
-    await logRequest('user.password_reset_requested', address, 'email_delivery_failed')
+    await logRequest('user.activation_resent', address, 'email_delivery_failed')
     sendFailure(error)
   }
-  await logRequest('user.password_reset_requested', address, 'link_sent')
+  await logRequest('user.activation_resent', address, 'link_sent')
 }
 
 /**
@@ -219,7 +188,13 @@ export async function completeUserLink(
   const address = sbUser.email!.toLowerCase()
 
   const local = await db.user.findFirst({ where: { OR: [{ supabaseUserId: sbUser.id }, { email: address }] } })
-  if (local && local.role !== 'USER') {
+  // No sign-up: only an account created by staff can be activated
+  if (!local) {
+    await client.auth.signOut()
+    await audit({ action: 'user.link_rejected', entityType: 'User', metadata: { reason: 'no_account' } })
+    throw new AppError('FORBIDDEN', 'Account not found. Please contact the administrator.')
+  }
+  if (local.role !== 'USER') {
     await client.auth.signOut()
     await audit({ action: 'user.link_rejected', entityType: 'User', entityId: local.id, metadata: { reason: 'not_a_user_account' } })
     throw new AppError('FORBIDDEN', 'This email belongs to a staff or canteen account. Please use your portal’s sign-in page.')
@@ -242,19 +217,13 @@ export async function completeUserLink(
   // CampusBite issues its own session; don't keep the Supabase one around
   await client.auth.signOut()
 
-  const purpose: 'ACTIVATION' | 'PASSWORD_RESET' = local?.status === 'ACTIVE' ? 'PASSWORD_RESET' : 'ACTIVATION'
+  const purpose: 'ACTIVATION' | 'PASSWORD_RESET' = local.status === 'ACTIVE' ? 'PASSWORD_RESET' : 'ACTIVATION'
   const now = new Date()
-  const fullName = (typeof sbUser.user_metadata?.full_name === 'string' && sbUser.user_metadata.full_name) || address.split('@')[0]
-
   const userId = await db.$transaction(async (tx) => {
-    const user = local
-      ? await tx.user.update({
-          where: { id: local.id },
-          data: { supabaseUserId: sbUser.id, status: 'ACTIVE', emailVerifiedAt: local.emailVerifiedAt ?? now, passwordHash: null, mustChangePassword: false },
-        })
-      : await tx.user.create({
-          data: { email: address, name: fullName, role: 'USER', status: 'ACTIVE', supabaseUserId: sbUser.id, emailVerifiedAt: now },
-        })
+    const user = await tx.user.update({
+      where: { id: local.id },
+      data: { supabaseUserId: sbUser.id, status: 'ACTIVE', emailVerifiedAt: local.emailVerifiedAt ?? now, passwordHash: null, mustChangePassword: false },
+    })
     await tx.userProfile.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id, integrationSource: 'supabase' } })
     // A password change signs the user out everywhere else
     await tx.session.deleteMany({ where: { userId: user.id } })

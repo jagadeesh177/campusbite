@@ -40,7 +40,12 @@ const nextConfig: NextConfig = {
   // The STUDENT role became USER: keep old links and bookmarks working
   async redirects() {
     return [
-      { source: '/login/student', destination: '/login/user', permanent: true },
+      // One sign-in page for everyone; no public sign-up
+      { source: '/login/student', destination: '/login', permanent: true },
+      { source: '/login/user', destination: '/login', permanent: true },
+      { source: '/login/staff', destination: '/login', permanent: true },
+      { source: '/login/canteen', destination: '/login', permanent: true },
+      { source: '/activate', destination: '/login', permanent: false },
       { source: '/student', destination: '/user/dashboard', permanent: true },
       { source: '/student/:path*', destination: '/user/:path*', permanent: true },
       { source: '/staff/students', destination: '/staff/users', permanent: true },

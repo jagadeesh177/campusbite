@@ -12,7 +12,7 @@ export default function PrivacyPage() {
       <section>
         <h2>What we collect</h2>
         <ul>
-          <li>Your name, email address and mobile number, which you give when you sign up. Your email is verified with a one-time link.</li>
+          <li>Your name, email address and mobile number, entered when the canteen office creates your account. Your email is verified with a one-time link or by Google.</li>
           <li>Your orders: items, amounts, timestamps and pickup records.</li>
           <li>Payment references from the payment gateway. We never see or store your UPI PIN, card or bank details.</li>
           <li>Optional preferences you choose to share, such as your department or dietary preference.</li><li>Sign-in and email verification are handled by Supabase Auth; activation emails are delivered by our email provider.</li>

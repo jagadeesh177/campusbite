@@ -1,12 +1,20 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import type { Role } from '@prisma/client'
 import { audit } from '@/lib/audit'
-import { toActionError } from '@/lib/errors'
+import { AppError, toActionError } from '@/lib/errors'
 import { getClientInfo } from '@/lib/request'
-import { authenticate } from '@/lib/auth/login'
-import { completeUserLink, registerUser, requestUserPasswordReset } from '@/lib/auth/user-auth'
+import { authenticateAny } from '@/lib/auth/login'
+import { cookies } from 'next/headers'
+import { completeUserLink } from '@/lib/auth/user-auth'
+import {
+  changePasswordInRecovery,
+  endRecoverySession,
+  RECOVERY_COOKIE,
+  RECOVERY_SB_COOKIE,
+  requestPasswordRecovery,
+  startRecoverySession,
+} from '@/lib/auth/recovery'
 import { changeOwnPassword } from '@/lib/auth/change-password'
 import { createSession, destroySession, getSessionUser } from '@/lib/auth/session'
 import { PORTAL_HOME } from '@/lib/auth/guards'
@@ -20,19 +28,18 @@ export type FormState =
     }
   | undefined
 
-const PORTALS = ['USER', 'STAFF', 'CANTEEN'] as const
-
-export async function loginAction(portal: Role, _prev: FormState, formData: FormData): Promise<FormState> {
-  if (!PORTALS.includes(portal)) return { error: 'Unknown portal.' }
+/** The one sign-in form: email + password for any existing account. */
+export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = String(formData.get('email') ?? '')
+  const remember = formData.get('remember') === 'on'
   const { ip } = await getClientInfo()
   let result
   try {
-    result = await authenticate(portal, { email, password: String(formData.get('password') ?? '') }, ip)
+    result = await authenticateAny({ email, password: String(formData.get('password') ?? '') }, ip)
   } catch (e) {
     return { error: toActionError(e).error, email }
   }
-  await createSession(result.userId, result.role)
+  await createSession(result.userId, result.role, { remember })
   redirect(result.mustChangePassword ? '/account/password' : PORTAL_HOME[result.role])
 }
 
@@ -49,33 +56,94 @@ export type LinkRequestState =
   | { error?: string; sent?: boolean; email?: string; values?: Record<string, string> }
   | undefined
 
-/** User registration with any personal email (Supabase Auth). Also used to resend the activation email. */
-export async function registerUserAction(_prev: LinkRequestState, formData: FormData): Promise<LinkRequestState> {
-  const values = {
-    email: String(formData.get('email') ?? '').trim(),
-    fullName: String(formData.get('fullName') ?? '').trim(),
-    phone: String(formData.get('phone') ?? '').trim(),
-    department: String(formData.get('department') ?? '').trim(),
-  }
-  const { ip } = await getClientInfo()
-  try {
-    await registerUser(values, ip)
-  } catch (e) {
-    return { error: toActionError(e).error, email: values.email, values }
-  }
-  // Same response whether or not the email already has an account (no enumeration)
-  return { sent: true, email: values.email.toLowerCase(), values }
-}
-
+/** Forgot password: same answer whether or not the email has an account (no enumeration). */
 export async function requestPasswordResetLinkAction(_prev: LinkRequestState, formData: FormData): Promise<LinkRequestState> {
   const email = String(formData.get('email') ?? '').trim().toLowerCase()
   const { ip } = await getClientInfo()
   try {
-    await requestUserPasswordReset(email, ip)
+    await requestPasswordRecovery(email, ip)
   } catch (e) {
     return { email, error: toActionError(e).error }
   }
   return { sent: true, email }
+}
+
+// ---- Password recovery session (cookies are HTTP-only and end with the 15-minute window)
+
+async function setRecoveryCookies(token: string, sb: { accessToken: string; refreshToken: string }, expiresAt: Date) {
+  const jar = await cookies()
+  const opts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const, path: '/', expires: expiresAt }
+  jar.set(RECOVERY_COOKIE, token, opts)
+  jar.set(RECOVERY_SB_COOKIE, JSON.stringify({ a: sb.accessToken, r: sb.refreshToken }), opts)
+}
+
+async function readRecoveryCookies() {
+  const jar = await cookies()
+  const token = jar.get(RECOVERY_COOKIE)?.value ?? null
+  let sb: { accessToken: string; refreshToken: string } | null = null
+  try {
+    const raw = JSON.parse(jar.get(RECOVERY_SB_COOKIE)?.value ?? 'null')
+    if (raw && typeof raw.a === 'string' && typeof raw.r === 'string') sb = { accessToken: raw.a, refreshToken: raw.r }
+  } catch {}
+  return { token, sb }
+}
+
+async function clearRecoveryCookies() {
+  const jar = await cookies()
+  jar.delete(RECOVERY_COOKIE)
+  jar.delete(RECOVERY_SB_COOKIE)
+}
+
+/** "Continue" on the emailed link: verify it once with Supabase, then open the recovery session. */
+export async function startRecoveryAction(formData: FormData): Promise<void> {
+  const { ip } = await getClientInfo()
+  let r
+  try {
+    r = await startRecoverySession(
+      {
+        tokenHash: String(formData.get('token') ?? '') || undefined,
+        accessToken: String(formData.get('accessToken') ?? '') || undefined,
+        refreshToken: String(formData.get('refreshToken') ?? '') || undefined,
+      },
+      ip,
+    )
+  } catch {
+    r = { ok: false as const, reason: 'expired' as const }
+  }
+  if (!r.ok) {
+    await clearRecoveryCookies()
+    redirect(r.reason === 'not_allowed' ? '/reset-password?state=not_allowed' : '/reset-password?state=expired')
+  }
+  await setRecoveryCookies(r.token, r.supabase, r.expiresAt)
+  redirect('/reset-password')
+}
+
+export type RecoveryFormState = { error?: string; changed?: number; until?: string } | undefined
+
+export async function changeRecoveryPasswordAction(prev: RecoveryFormState, formData: FormData): Promise<RecoveryFormState> {
+  const { token, sb } = await readRecoveryCookies()
+  try {
+    const r = await changePasswordInRecovery(token, sb, {
+      password: String(formData.get('password') ?? ''),
+      confirmPassword: String(formData.get('confirmPassword') ?? ''),
+    })
+    await setRecoveryCookies(token!, r.supabase, r.expiresAt)
+    return { changed: (prev?.changed ?? 0) + 1, until: r.expiresAt.toISOString() }
+  } catch (e) {
+    if (e instanceof AppError && e.code === 'CONFLICT') {
+      await clearRecoveryCookies()
+      redirect('/reset-password?state=expired')
+    }
+    return { error: toActionError(e).error, changed: prev?.changed, until: prev?.until }
+  }
+}
+
+/** Done: end the recovery session and go to sign in. */
+export async function endRecoveryAction(): Promise<void> {
+  const { token, sb } = await readRecoveryCookies()
+  await endRecoverySession(token, sb)
+  await clearRecoveryCookies()
+  redirect('/login?reset=1')
 }
 
 export async function setPasswordWithLinkAction(_prev: FormState, formData: FormData): Promise<FormState> {
