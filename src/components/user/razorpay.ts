@@ -36,6 +36,8 @@ export async function payWithRazorpay(
       amount: session.amountPaise,
       currency: 'INR',
       order_id: session.gatewayOrderId,
+      // Close the checkout when the order's 30-minute payment window ends
+      timeout: Math.max(60, Math.floor((new Date(session.payBy).getTime() - Date.now()) / 1000)),
       name: 'CampusBite',
       description: `Order ${session.orderNumber}`,
       prefill,

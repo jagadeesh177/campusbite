@@ -150,7 +150,8 @@ export function getActiveGateway(): PaymentGateway {
 /** Gateway that handled an EXISTING payment (refunds must go back the same way). */
 export function getGatewayFor(provider: PaymentProvider): PaymentGateway {
   if (provider === 'RAZORPAY') return getRazorpayGateway()
-  if (!env.simulatorEnabled) throw new Error('Payment simulator is disabled')
+  // Refunding a simulated payment moves no money, so it must keep working after
+  // the simulator is switched off for new payments (old test orders still exist).
   return simulator
 }
 

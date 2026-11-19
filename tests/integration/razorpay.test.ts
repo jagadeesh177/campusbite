@@ -42,7 +42,7 @@ vi.mock('razorpay', () => ({
   },
 }))
 
-import { createOrder } from '@/lib/orders/create-order'
+import { createOrder, getCheckoutSession } from '@/lib/orders/create-order'
 import { expireStalePendingOrders } from '@/lib/orders/expire'
 import { handleRazorpayWebhook, reconcileRazorpayPayment, verifyRazorpayCheckout } from '@/lib/payments/razorpay-handlers'
 import { assertRazorpayModeAllowed, razorpayMode } from '@/lib/payments/gateway'
@@ -222,6 +222,16 @@ describe('Razorpay checkout verification', () => {
     await prisma.order.update({ where: { id: co.orderId }, data: { createdAt: new Date(Date.now() - 60 * 60_000) } })
     await expireStalePendingOrders()
     expect(await orderStatus(co.orderId)).toBe('CONFIRMED')
+  })
+})
+
+describe('payment window', () => {
+  it('an order past its 30-minute window can no longer be paid', async () => {
+    const { actor, co } = await newOrder()
+    expect(new Date(co.payBy).getTime() - new Date().getTime()).toBeGreaterThan(29 * 60_000)
+    await prisma.order.update({ where: { id: co.orderId }, data: { createdAt: new Date(Date.now() - 31 * 60_000) } })
+    await expect(getCheckoutSession(actor, co.orderId)).rejects.toSatisfy((e: unknown) => e instanceof AppError && e.code === 'CONFLICT')
+    expect(await orderStatus(co.orderId)).toBe('CANCELLED')
   })
 })
 

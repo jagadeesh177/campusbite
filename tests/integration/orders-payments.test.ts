@@ -272,6 +272,25 @@ describe('status transitions & refunds', () => {
   })
 })
 
+describe('old simulated payments after the simulator is switched off', () => {
+  it('can still be refunded when the canteen rejects the order (no real money involved)', async () => {
+    const { actor } = await createUser()
+    const { actor: kitchen } = await createCanteen()
+    const co = await paidOrder(actor)
+    const prev = process.env.PAYMENT_SIMULATOR_ENABLED
+    process.env.PAYMENT_SIMULATOR_ENABLED = 'false'
+    try {
+      const r = await changeOrderStatus(kitchen, { orderId: co.orderId, to: 'REFUND_PENDING', reason: 'Not available' })
+      expect(r.refund).toBe('processed')
+      const order = await prisma.order.findUniqueOrThrow({ where: { id: co.orderId }, include: { refunds: true } })
+      expect(order.status).toBe('REFUNDED')
+      expect(order.refunds[0].status).toBe('PROCESSED')
+    } finally {
+      process.env.PAYMENT_SIMULATOR_ENABLED = prev
+    }
+  })
+})
+
 describe('pickup verification', () => {
   async function readyOrder() {
     const s = await createUser()

@@ -12,7 +12,7 @@ import type { Actor } from '@/lib/auth/guards'
 import { getActiveGateway } from '@/lib/payments/gateway'
 import { generateOrderNumber } from './codes'
 import { recordStatusChange } from './events'
-import { expireStalePendingOrders } from './expire'
+import { expireStalePendingOrders, PAYMENT_WINDOW_MINUTES } from './expire'
 import { MAX_CART_LINES, MAX_ITEM_QUANTITY, normalizeCartLines, priceCart } from './pricing'
 
 export const cartLinesSchema = z
@@ -127,6 +127,8 @@ export interface CheckoutSession {
   gatewayOrderId: string
   amountPaise: Paise
   razorpayKeyId: string | null
+  /** When the order expires if unpaid (the checkout closes itself before this) */
+  payBy: string
 }
 
 async function checkoutFor(orderId: string): Promise<CheckoutSession> {
@@ -151,6 +153,7 @@ async function checkoutFor(orderId: string): Promise<CheckoutSession> {
     gatewayOrderId: payment.gatewayOrderId,
     amountPaise: rupeesToPaise(payment.amount),
     razorpayKeyId: payment.provider === 'RAZORPAY' ? env.razorpay.keyId : null,
+    payBy: new Date(order.createdAt.getTime() + PAYMENT_WINDOW_MINUTES * 60_000).toISOString(),
   }
 }
 
@@ -327,6 +330,7 @@ export async function createOrder(
 
 /** Resume payment for one of the user's own unpaid orders. */
 export async function getCheckoutSession(actor: Actor, orderId: string): Promise<CheckoutSession> {
+  await expireStalePendingOrders() // an order past its payment window must not be payable
   const order = await db.order.findFirst({ where: { id: orderId, userId: actor.userId } })
   if (!order) throw new AppError('NOT_FOUND', 'Order not found.')
   if (order.status !== 'PAYMENT_PENDING') throw new AppError('CONFLICT', 'This order no longer needs payment.')

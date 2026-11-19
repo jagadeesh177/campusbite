@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { requirePortalUser, toActor } from '@/lib/auth/guards'
 import { getCheckoutSession } from '@/lib/orders/create-order'
+import { expireStalePendingOrders } from '@/lib/orders/expire'
 import { formatINR, rupeesToPaise } from '@/lib/money'
 import { Card, CardBody } from '@/components/ui/card'
 import { PageHeader } from '@/components/ui/misc'
@@ -14,6 +15,7 @@ export const dynamic = 'force-dynamic'
 export default async function PayPage({ params }: { params: Promise<{ paymentId: string }> }) {
   const user = await requirePortalUser('USER')
   const { paymentId } = await params
+  await expireStalePendingOrders() // don't offer payment for an order past its 30-minute window
   const payment = await db.payment.findUnique({
     where: { id: paymentId },
     include: { order: { include: { items: true } } },
