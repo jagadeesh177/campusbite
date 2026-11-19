@@ -45,7 +45,7 @@ const nextConfig: NextConfig = {
       { source: '/login/user', destination: '/login', permanent: true },
       { source: '/login/staff', destination: '/login', permanent: true },
       { source: '/login/canteen', destination: '/login', permanent: true },
-      { source: '/activate', destination: '/login', permanent: false },
+      { source: '/activate', destination: '/signup', permanent: false },
       { source: '/student', destination: '/user/dashboard', permanent: true },
       { source: '/student/:path*', destination: '/user/:path*', permanent: true },
       { source: '/staff/students', destination: '/staff/users', permanent: true },

@@ -20,6 +20,18 @@ function GoogleMark() {
   )
 }
 
+/** Full page navigation: the server starts the Google sign-in (PKCE). */
+export function GoogleButton() {
+  return (
+    <a
+      href="/auth/google"
+      className="flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-line bg-surface px-4 font-semibold text-ink shadow-sm transition hover:border-primary/40 hover:bg-primary-soft/40"
+    >
+      <GoogleMark /> Continue with Google
+    </a>
+  )
+}
+
 export function LoginForm({ notice }: { notice?: { tone: 'danger' | 'success' | 'info'; text: string } }) {
   const [state, action] = useActionState<FormState, FormData>(loginAction, undefined)
   const [show, setShow] = useState(false)
@@ -27,13 +39,7 @@ export function LoginForm({ notice }: { notice?: { tone: 'danger' | 'success' | 
     <div className="space-y-5">
       {notice && !state?.error && <Notice tone={notice.tone}>{notice.text}</Notice>}
 
-      {/* Full page navigation: the server starts the Google sign-in (PKCE) */}
-      <a
-        href="/auth/google"
-        className="flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-line bg-surface px-4 font-semibold text-ink shadow-sm transition hover:border-primary/40 hover:bg-primary-soft/40"
-      >
-        <GoogleMark /> Continue with Google
-      </a>
+      <GoogleButton />
 
       <div className="flex items-center gap-3 text-xs font-semibold tracking-wide text-subtle uppercase" role="separator">
         <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />

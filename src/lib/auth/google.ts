@@ -6,11 +6,11 @@ import { env } from '@/lib/env'
 import { createSupabasePkceClient, supabaseConfig } from './supabase'
 
 // ===========================================================================
-// "Continue with Google" — sign-in only, never sign-up.
-// Google proves the email address (via Supabase Auth). The account must
-// already exist in CampusBite as a USER created by staff; the role comes from
-// our database. An unknown Google account is refused, and the Supabase login
-// that Supabase created for it is deleted again so nothing is left behind.
+// "Continue with Google" — sign in, or create an account the first time.
+// Google proves the email address (via Supabase Auth). A first-time Google
+// user gets a USER account (never STAFF/CANTEEN). The same email can never
+// get a second account: an existing CampusBite account is signed in instead.
+// Staff and canteen accounts can't use Google; their Supabase login is removed.
 // ===========================================================================
 
 export const OAUTH_COOKIE = process.env.NODE_ENV === 'production' ? '__Host-cb_oauth' : 'cb_oauth'
@@ -55,7 +55,28 @@ export async function finishGoogleSignIn(code: string, state: string | undefined
   }
   const email = sbUser.email.toLowerCase()
 
-  const local = await db.user.findFirst({ where: { OR: [{ email }, { supabaseUserId: sbUser.id }] } })
+  let local = await db.user.findFirst({ where: { OR: [{ email }, { supabaseUserId: sbUser.id }] } })
+  const verified = sbUser.email_confirmed_at || sbUser.user_metadata?.email_verified === true
+  if (!local && verified) {
+    const name = String(sbUser.user_metadata?.full_name ?? sbUser.user_metadata?.name ?? email.split('@')[0]).slice(0, 80)
+    try {
+      local = await db.user.create({
+        data: {
+          email,
+          name,
+          role: 'USER', // automatic; never chosen by the user
+          status: 'ACTIVE',
+          supabaseUserId: sbUser.id,
+          emailVerifiedAt: new Date(),
+          userProfile: { create: { integrationSource: 'google' } },
+        },
+      })
+      await audit({ actor: { userId: local.id, role: 'USER' }, action: 'user.signup_google', entityType: 'User', entityId: local.id })
+    } catch {
+      // created by a simultaneous request: use that one
+      local = await db.user.findFirst({ where: { email } })
+    }
+  }
   if (!local || local.role !== 'USER' || (local.supabaseUserId && local.supabaseUserId !== sbUser.id)) {
     // Remove the Supabase login created for this unknown Google account (never one a CampusBite user owns)
     const ownedByUser = await db.user.findFirst({ where: { supabaseUserId: sbUser.id }, select: { id: true } })
@@ -67,7 +88,7 @@ export async function finishGoogleSignIn(code: string, state: string | undefined
   await client.auth.signOut().catch(() => undefined) // CampusBite issues its own session
   if (local.status === 'DEACTIVATED') return { ok: false, reason: 'deactivated' }
 
-  // A staff-created account that hasn't set a password yet is activated by Google's verified email
+  // A pending account (sign-up code not entered yet, or staff-created) is activated by Google's verified email
   const now = new Date()
   await db.user.update({
     where: { id: local.id },

@@ -7,6 +7,7 @@ import { getClientInfo } from '@/lib/request'
 import { authenticateAny } from '@/lib/auth/login'
 import { cookies } from 'next/headers'
 import { completeUserLink } from '@/lib/auth/user-auth'
+import { resendSignupCode, startSignup, verifySignup } from '@/lib/auth/signup'
 import {
   changePasswordInRecovery,
   endRecoverySession,
@@ -55,6 +56,49 @@ export async function logoutAction() {
 export type LinkRequestState =
   | { error?: string; sent?: boolean; email?: string; values?: Record<string, string> }
   | undefined
+
+export type SignupState =
+  | { step: 'details'; error?: string; values?: { fullName: string; email: string } }
+  | { step: 'code'; email: string; error?: string; message?: string }
+  | undefined
+
+/** Public sign-up (Gmail only): step 1 sends a 6-digit code, step 2 verifies it and signs the user in. */
+export async function signupAction(prev: SignupState, formData: FormData): Promise<SignupState> {
+  const { ip } = await getClientInfo()
+  const intent = String(formData.get('intent') ?? 'details')
+
+  if (intent === 'details') {
+    const values = { fullName: String(formData.get('fullName') ?? '').trim(), email: String(formData.get('email') ?? '').trim() }
+    try {
+      const r = await startSignup(
+        { ...values, password: String(formData.get('password') ?? ''), confirmPassword: String(formData.get('confirmPassword') ?? '') },
+        ip,
+      )
+      return { step: 'code', email: r.email }
+    } catch (e) {
+      return { step: 'details', error: toActionError(e).error, values }
+    }
+  }
+
+  const email = prev?.step === 'code' ? prev.email : String(formData.get('email') ?? '')
+  if (intent === 'resend') {
+    try {
+      await resendSignupCode(email, ip)
+      return { step: 'code', email, message: 'We sent a new code. Use the newest email.' }
+    } catch (e) {
+      return { step: 'code', email, error: toActionError(e).error }
+    }
+  }
+
+  let userId: string
+  try {
+    userId = (await verifySignup({ email, code: String(formData.get('code') ?? '') }, ip)).userId
+  } catch (e) {
+    return { step: 'code', email, error: toActionError(e).error }
+  }
+  await createSession(userId, 'USER', { remember: true })
+  redirect('/user/dashboard?activated=1')
+}
 
 /** Forgot password: same answer whether or not the email has an account (no enumeration). */
 export async function requestPasswordResetLinkAction(_prev: LinkRequestState, formData: FormData): Promise<LinkRequestState> {

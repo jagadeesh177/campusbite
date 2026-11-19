@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { AuthShell } from '@/components/auth/auth-shell'
 import { LoginForm } from '@/components/auth/login-form'
 import { redirectIfSignedIn } from '@/components/auth/redirect-if-signed-in'
@@ -17,7 +18,7 @@ const NOTICES: Record<string, { tone: 'danger' | 'success' | 'info'; text: strin
   reset: { tone: 'success', text: 'Your password has been changed. Sign in with your new password.' },
 }
 
-/** The one sign-in page for users, staff and canteen. No sign-up. */
+/** The one sign-in page for users, staff and canteen. */
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; reset?: string }> }) {
   await redirectIfSignedIn()
   const sp = await searchParams
@@ -25,8 +26,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <AuthShell title="Welcome Back" subtitle="Sign in to your CampusBite account.">
       <LoginForm notice={notice} />
-      <p className="mt-8 text-center text-xs text-subtle">
-        Accounts are created by the CampusBite administrator. Need access? Contact the canteen office.
+      <p className="mt-8 text-center text-sm text-muted">
+        New to CampusBite?{' '}
+        <Link href="/signup" className="font-semibold text-primary hover:underline">
+          Create an account
+        </Link>
       </p>
     </AuthShell>
   )

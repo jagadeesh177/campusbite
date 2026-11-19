@@ -6,7 +6,8 @@ const { fake } = await import('../fake-supabase')
 const { completeUserLink, inviteUser, changeSupabasePassword } = await import('@/lib/auth/user-auth')
 const { authenticate, authenticateAny } = await import('@/lib/auth/login')
 const recovery = await import('@/lib/auth/recovery')
-const { finishGoogleSignIn, startGoogleSignIn, ACCOUNT_NOT_FOUND } = await import('@/lib/auth/google')
+const { finishGoogleSignIn, startGoogleSignIn } = await import('@/lib/auth/google')
+const signup = await import('@/lib/auth/signup')
 const { AppError } = await import('@/lib/errors')
 const { createCanteen, createStaff, prisma, resetDb, TEST_PASSWORD } = await import('../helpers')
 
@@ -39,7 +40,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('no public sign-up: accounts are created by staff', () => {
+describe('staff can still create accounts', () => {
   it('staff with USERS permission create a pending USER and an activation email is sent', async () => {
     const { userId } = await invitedUser('asha@gmail.com', false)
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
@@ -93,7 +94,65 @@ describe('email + password sign-in (one page for every role)', () => {
   })
 })
 
-describe('Continue with Google (sign-in only)', () => {
+describe('public sign-up with Gmail + 6-digit code', () => {
+  const details = (email: string, extra: Partial<{ fullName: string; password: string; confirmPassword: string }> = {}) =>
+    signup.startSignup({ fullName: 'Asha Kumar', email, password: PW, confirmPassword: PW, ...extra }, null)
+
+  it('creates a pending USER, Supabase stores the password and emails a code; the code activates it', async () => {
+    expect(await details('Asha.Kumar@Gmail.com')).toEqual({ email: 'asha.kumar@gmail.com' })
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: 'asha.kumar@gmail.com' } })
+    expect(user).toMatchObject({ role: 'USER', status: 'PENDING_VERIFICATION', passwordHash: null })
+    expect(fake.users.get('asha.kumar@gmail.com')?.password).toBe(PW) // held by Supabase Auth, not by CampusBite
+    // can't sign in before verifying
+    await expectAppError(authenticateAny({ email: 'asha.kumar@gmail.com', password: PW }, null), 'FORBIDDEN')
+    const { userId } = await signup.verifySignup({ email: 'asha.kumar@gmail.com', code: fake.lastTo('asha.kumar@gmail.com')!.code }, null)
+    expect(userId).toBe(user.id)
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: userId } })).status).toBe('ACTIVE')
+    // afterwards: plain email + password, no more codes
+    expect((await authenticateAny({ email: 'asha.kumar@gmail.com', password: PW }, null)).userId).toBe(userId)
+  })
+
+  it.each(['asha@outlook.com', 'asha@gmail.co', 'asha@googlemail.com', 'a@gmail.com', 'as..ha@gmail.com', 'asha@gmail.com.evil.io', 'not-an-email', 'short@gmail.com'])(
+    'rejects %s (Gmail only, well-formed)',
+    async (email) => {
+      await expectAppError(details(email), 'VALIDATION')
+      expect(fake.sent).toHaveLength(0)
+    },
+  )
+
+  it('validates password strength and confirmation', async () => {
+    await expectAppError(details('asha.kumar@gmail.com', { password: 'short', confirmPassword: 'short' }), 'VALIDATION')
+    await expectAppError(details('asha.kumar@gmail.com', { confirmPassword: 'Different2026!' }), 'VALIDATION', /do not match/)
+  })
+
+  it('wrong or old codes are refused; a new code replaces the old one', async () => {
+    await details('asha.kumar@gmail.com')
+    const first = fake.lastTo('asha.kumar@gmail.com')!.code
+    await expectAppError(signup.verifySignup({ email: 'asha.kumar@gmail.com', code: '000000' }, null), 'VALIDATION', /wrong or has expired/)
+    await prisma.rateLimitBucket.deleteMany()
+    await signup.resendSignupCode('asha.kumar@gmail.com', null)
+    await expectAppError(signup.verifySignup({ email: 'asha.kumar@gmail.com', code: first }, null), 'VALIDATION')
+    expect((await signup.verifySignup({ email: 'asha.kumar@gmail.com', code: fake.lastTo('asha.kumar@gmail.com')!.code }, null)).userId).toBeTruthy()
+  })
+
+  it('no duplicate accounts; staff/canteen emails and roles are protected', async () => {
+    await details('asha.kumar@gmail.com')
+    await signup.verifySignup({ email: 'asha.kumar@gmail.com', code: fake.lastTo('asha.kumar@gmail.com')!.code }, null)
+    await prisma.rateLimitBucket.deleteMany()
+    await expectAppError(details('asha.kumar@gmail.com'), 'CONFLICT', /already exists/)
+    const staffGmail = await prisma.user.create({ data: { email: 'campus.boss@gmail.com', name: 'Boss', role: 'STAFF', status: 'ACTIVE' } })
+    await expectAppError(details(staffGmail.email), 'CONFLICT')
+    expect(await prisma.user.count({ where: { email: 'asha.kumar@gmail.com' } })).toBe(1)
+  })
+
+  it('code guessing is rate limited', async () => {
+    await details('asha.kumar@gmail.com')
+    for (let i = 0; i < 8; i++) await signup.verifySignup({ email: 'asha.kumar@gmail.com', code: '111111' }, null).catch(() => null)
+    await expectAppError(signup.verifySignup({ email: 'asha.kumar@gmail.com', code: fake.lastTo('asha.kumar@gmail.com')!.code }, null), 'RATE_LIMITED')
+  })
+})
+
+describe('Continue with Google', () => {
   it('an existing user signs in with their Google account', async () => {
     const { userId } = await invitedUser()
     expect(await googleSignIn('Asha@gmail.com')).toEqual({ ok: true, userId, role: 'USER' })
@@ -105,12 +164,20 @@ describe('Continue with Google (sign-in only)', () => {
     expect((await prisma.user.findUniqueOrThrow({ where: { id: userId } })).status).toBe('ACTIVE')
   })
 
-  it('an unknown Google user is refused, no account is created and the Supabase login is removed', async () => {
-    const r = await googleSignIn('stranger@gmail.com')
-    expect(r).toEqual({ ok: false, reason: 'not_found' })
-    expect(ACCOUNT_NOT_FOUND).toBe('Account not found. Please contact the administrator.')
-    expect(await prisma.user.count({ where: { email: 'stranger@gmail.com' } })).toBe(0)
-    expect(fake.users.has('stranger@gmail.com')).toBe(false)
+  it('a first-time Google user gets a USER account automatically, and only one', async () => {
+    const r = await googleSignIn('New.Person@gmail.com')
+    expect(r).toMatchObject({ ok: true, role: 'USER' })
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: 'new.person@gmail.com' } })
+    expect(user).toMatchObject({ role: 'USER', status: 'ACTIVE', name: 'Google User' })
+    expect(await googleSignIn('new.person@gmail.com')).toEqual({ ok: true, userId: user.id, role: 'USER' })
+    expect(await prisma.user.count({ where: { email: 'new.person@gmail.com' } })).toBe(1)
+  })
+
+  it('a Gmail sign-up still waiting for its code is completed by Google (no duplicate)', async () => {
+    await signup.startSignup({ fullName: 'Asha Kumar', email: 'asha.kumar@gmail.com', password: PW, confirmPassword: PW }, null)
+    const pending = await prisma.user.findUniqueOrThrow({ where: { email: 'asha.kumar@gmail.com' } })
+    expect(await googleSignIn('asha.kumar@gmail.com')).toMatchObject({ ok: true, userId: pending.id })
+    expect(await prisma.user.count({ where: { email: 'asha.kumar@gmail.com' } })).toBe(1)
   })
 
   it('staff/canteen emails cannot be used through Google; deactivated users are refused', async () => {
@@ -123,7 +190,7 @@ describe('Continue with Google (sign-in only)', () => {
 
   it('a code without the matching PKCE state is rejected', async () => {
     await invitedUser()
-    expect(await finishGoogleSignIn(fake.googleCode('asha@gmail.com'), JSON.stringify({}))).toEqual({ ok: false, reason: 'failed' })
+    expect(await finishGoogleSignIn(fake.googleCode('asha.kumar@gmail.com'), JSON.stringify({}))).toEqual({ ok: false, reason: 'failed' })
   })
 })
 

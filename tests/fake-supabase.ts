@@ -6,8 +6,8 @@ import { randomBytes } from 'node:crypto'
  * can't sign in, and recovery links only work as recovery links.
  */
 type FakeUser = { id: string; email: string; password?: string; confirmed: boolean; metadata: Record<string, unknown> }
-type FakeToken = { email: string; kind: 'email' | 'recovery'; expiresAt: number; used: boolean }
-export type SentEmail = { to: string; kind: 'email' | 'recovery'; tokenHash: string; redirectTo?: string }
+type FakeToken = { email: string; kind: 'email' | 'recovery'; expiresAt: number; used: boolean; code: string }
+export type SentEmail = { to: string; kind: 'email' | 'recovery'; tokenHash: string; code: string; redirectTo?: string }
 
 export const fake = {
   users: new Map<string, FakeUser>(),
@@ -54,8 +54,11 @@ const err = (code: string, status = 400) => ({ code, status, message: code, name
 
 function issue(email: string, kind: 'email' | 'recovery', redirectTo?: string) {
   const tokenHash = randomBytes(28).toString('hex')
-  fake.tokens.set(tokenHash, { email, kind, expiresAt: Date.now() + fake.ttlMs, used: false })
-  fake.sent.push({ to: email, kind, tokenHash, redirectTo })
+  const code = String(100000 + (randomBytes(3).readUIntBE(0, 3) % 900000))
+  // A new email replaces earlier unused ones of the same kind (like Supabase)
+  for (const t of fake.tokens.values()) if (t.email === email && t.kind === kind) t.used = true
+  fake.tokens.set(tokenHash, { email, kind, expiresAt: Date.now() + fake.ttlMs, used: false, code })
+  fake.sent.push({ to: email, kind, tokenHash, code, redirectTo })
 }
 
 function mintSession(email: string) {
@@ -95,7 +98,28 @@ export function createFakeClient() {
         if (fake.users.has(email)) issue(email, 'recovery', opts?.redirectTo)
         return { data: {}, error: null }
       },
-      async verifyOtp({ token_hash, type }: { token_hash: string; type: string }) {
+      async signUp({ email, password, options }: { email: string; password: string; options?: { data?: Record<string, unknown> } }) {
+        if (fake.failNextSend) {
+          fake.failNextSend = false
+          return { data: { user: null }, error: err('unexpected_failure', 500) }
+        }
+        const existing = fake.users.get(email)
+        // Supabase: an existing email gets an obfuscated user with no identities and no email
+        if (existing) return { data: { user: { id: existing.id, email, identities: [] } }, error: null }
+        const u: FakeUser = { id: `sb-${randomBytes(6).toString('hex')}`, email, password, confirmed: false, metadata: options?.data ?? {} }
+        fake.users.set(email, u)
+        issue(email, 'email')
+        return { data: { user: { ...publicUser(u), identities: [{ provider: 'email' }] } }, error: null }
+      },
+      async resend({ type, email }: { type: string; email: string }) {
+        const u = fake.users.get(email)
+        if (type !== 'signup' || !u || u.confirmed) return { data: {}, error: err('email_already_confirmed', 422) }
+        issue(email, 'email')
+        return { data: {}, error: null }
+      },
+      async verifyOtp(args: { token_hash?: string; type: string; email?: string; token?: string }) {
+        const { type } = args
+        const token_hash = args.token_hash ?? [...fake.tokens.entries()].find(([, t]) => t.email === args.email && t.code === args.token && !t.used)?.[0] ?? ''
         const t = fake.tokens.get(token_hash)
         const kindOk = t && (type === 'recovery' ? t.kind === 'recovery' : t.kind === 'email')
         if (!t || t.used || t.expiresAt < Date.now() || !kindOk) {
@@ -163,7 +187,7 @@ export function createFakePkceClient(storage: Map<string, string>) {
         // Supabase creates (or links to) the user for a Google-verified email
         let u = fake.users.get(email)
         if (!u) {
-          u = { id: `sb-${randomBytes(6).toString('hex')}`, email, confirmed: true, metadata: { provider: 'google' } }
+          u = { id: `sb-${randomBytes(6).toString('hex')}`, email, confirmed: true, metadata: { provider: 'google', full_name: 'Google User', email_verified: true } }
           fake.users.set(email, u)
         }
         current = u

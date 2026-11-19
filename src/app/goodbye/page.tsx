@@ -18,6 +18,7 @@ export default function GoodbyePage() {
         </p>
         <div className="mt-6 grid gap-2">
           <ButtonLink href="/" size="lg">Back to home</ButtonLink>
+          <ButtonLink href="/signup" variant="secondary">Create a new account</ButtonLink>
         </div>
       </div>
     </AuthShell>

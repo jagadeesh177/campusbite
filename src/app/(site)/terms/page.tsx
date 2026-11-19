@@ -11,7 +11,7 @@ export default function TermsPage() {
     >
       <section>
         <h2>Eligibility</h2>
-        <p>CampusBite is available to users whose accounts are created by the CampusBite administrator, and to authorised canteen and college staff.</p>
+        <p>CampusBite is available to users who sign up with a verified Gmail address or Google account, and to authorised canteen and college staff.</p>
       </section>
       <section>
         <h2>Orders and payment</h2>
