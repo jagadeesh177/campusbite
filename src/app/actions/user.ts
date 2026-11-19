@@ -11,8 +11,7 @@ import { cancelOrderAsUser } from '@/lib/orders/transitions'
 import { simulatePayment } from '@/lib/payments/simulator'
 import { reconcileRazorpayPayment } from '@/lib/payments/razorpay-handlers'
 import { deleteOwnAccount } from '@/lib/account-deletion'
-import { destroySession, getSessionUser } from '@/lib/auth/session'
-import { changeOwnPassword } from '@/lib/auth/change-password'
+import { destroySession } from '@/lib/auth/session'
 
 const linesSchema = z.array(z.object({ foodItemId: z.string().max(40), quantity: z.number().int().min(1).max(10) })).max(15)
 
@@ -158,37 +157,10 @@ export type DeleteAccountState = { error?: string } | undefined
 export async function deleteAccountAction(_prev: DeleteAccountState, formData: FormData): Promise<DeleteAccountState> {
   try {
     const actor = await requireActor('USER')
-    await deleteOwnAccount(actor, {
-      password: String(formData.get('password') ?? ''),
-      confirm: String(formData.get('confirm') ?? ''),
-    })
+    await deleteOwnAccount(actor, { confirm: String(formData.get('confirm') ?? '') })
   } catch (e) {
     return { error: toActionError(e).error }
   }
   await destroySession()
   redirect('/goodbye')
-}
-
-export type ChangePasswordState =
-  | { ok?: boolean; error?: string; message?: string; fieldErrors?: Record<string, string[] | undefined>; nonce?: number }
-  | undefined
-
-/** Profile → Account Security. Stays on the page; signs out other devices. */
-export async function changePasswordInlineAction(_prev: ChangePasswordState, formData: FormData): Promise<ChangePasswordState> {
-  const session = await getSessionUser()
-  if (!session || session.role !== 'USER') return { error: 'Your session has expired. Please sign in again.' }
-  try {
-    const r = await changeOwnPassword(
-      { userId: session.id, sessionId: session.sessionId },
-      {
-        currentPassword: String(formData.get('currentPassword') ?? ''),
-        newPassword: String(formData.get('newPassword') ?? ''),
-        confirmPassword: String(formData.get('confirmPassword') ?? ''),
-      },
-    )
-    if (!r.ok) return { error: r.error ?? 'Please check the highlighted fields.', fieldErrors: r.fieldErrors }
-  } catch (e) {
-    return { error: toActionError(e).error }
-  }
-  return { ok: true, message: 'Password changed. Other devices have been signed out.', nonce: Date.now() }
 }

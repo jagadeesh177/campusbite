@@ -5,5 +5,5 @@ import { PORTAL_HOME } from '@/lib/auth/guards'
 
 export async function redirectIfSignedIn() {
   const user = await getSessionUser()
-  if (user) redirect(user.mustChangePassword ? '/account/password' : PORTAL_HOME[user.role])
+  if (user) redirect(PORTAL_HOME[user.role])
 }

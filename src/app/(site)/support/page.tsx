@@ -7,11 +7,11 @@ export default function SupportPage() {
   return (
     <ProsePage title="Support" intro="Answers to common questions. Still stuck? Email easalajagadeesh@gmail.com.">
       <section>
-        <h2>I can&apos;t activate my account</h2>
+        <h2>How do I sign in?</h2>
         <p>
-          Check your Junk/Spam folder for the activation email. Each link works once and expires after 15 minutes,
-          and only one email is sent every 15 minutes — if your link has expired, request a new one from the
-          Create Account page. Already activated? Use &ldquo;Forgot password?&rdquo; on the sign-in page.
+          Tap <strong>Continue with Google</strong> and pick your Google account. Your CampusBite account is created
+          the first time — there&apos;s no password or code. Always use the same Google account so you see your orders.
+          Staff and kitchen teams use the Staff or Kitchen login with the Google email their administrator registered.
         </p>
       </section>
       <section>

@@ -12,7 +12,7 @@ export default function PrivacyPage() {
       <section>
         <h2>What we collect</h2>
         <ul>
-          <li>Your name, email address and mobile number. Your email is verified by a one-time code or by Google when you sign up.</li>
+          <li>Your name and email address from your Google account when you sign in, and a mobile number if you add one. We never see or store your Google password.</li>
           <li>Your orders: items, amounts, timestamps and pickup records.</li>
           <li>Payment references from the payment gateway. We never see or store your UPI PIN, card or bank details.</li>
           <li>Optional preferences you choose to share, such as your department or dietary preference.</li><li>Sign-in and email verification are handled by Supabase Auth; activation emails are delivered by our email provider.</li>

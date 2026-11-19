@@ -1,14 +1,15 @@
-import { NextResponse } from 'next/server'
-import { OAUTH_COOKIE, startGoogleSignIn } from '@/lib/auth/google'
+import { NextResponse, type NextRequest } from 'next/server'
+import { OAUTH_COOKIE, parsePortal, PORTAL_LOGIN_PATH, startGoogleSignIn } from '@/lib/auth/google'
 import { env } from '@/lib/env'
 
 export const dynamic = 'force-dynamic'
 
-/** "Continue with Google": send the browser to Google (via Supabase Auth, PKCE). */
-export async function GET() {
-  const start = await startGoogleSignIn()
+/** "Continue with Google" for one portal (?portal=user|staff|canteen): send the browser to Google (PKCE). */
+export async function GET(req: NextRequest) {
+  const portal = parsePortal(req.nextUrl.searchParams.get('portal'))
   const base = env.appUrl.replace(/\/$/, '')
-  if (!start) return NextResponse.redirect(`${base}/login?error=google_unavailable`)
+  const start = await startGoogleSignIn(portal)
+  if (!start) return NextResponse.redirect(`${base}${PORTAL_LOGIN_PATH[portal]}?error=google_unavailable`)
   const res = NextResponse.redirect(start.url)
   res.cookies.set(OAUTH_COOKIE, start.state, {
     httpOnly: true,

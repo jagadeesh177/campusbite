@@ -1,36 +1,27 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { AuthShell } from '@/components/auth/auth-shell'
-import { LoginForm } from '@/components/auth/login-form'
+import { GoogleSignIn } from '@/components/auth/login-form'
+import { loginNotice } from '@/components/auth/login-notices'
 import { redirectIfSignedIn } from '@/components/auth/redirect-if-signed-in'
-import { ACCOUNT_NOT_FOUND } from '@/lib/auth/google'
 
 export const metadata: Metadata = { title: 'Sign in' }
 export const dynamic = 'force-dynamic'
 
-const NOTICES: Record<string, { tone: 'danger' | 'success' | 'info'; text: string }> = {
-  account_not_found: { tone: 'danger', text: ACCOUNT_NOT_FOUND },
-  deactivated: { tone: 'danger', text: 'This account has been deactivated. Please contact the administrator.' },
-  google_failed: { tone: 'danger', text: 'Google sign-in didn’t complete. Please try again.' },
-  google_cancelled: { tone: 'info', text: 'Google sign-in was cancelled.' },
-  google_unavailable: { tone: 'danger', text: 'Google sign-in isn’t available right now. Use your email and password.' },
-  rate_limited: { tone: 'danger', text: 'Too many attempts. Please wait a few minutes and try again.' },
-  reset: { tone: 'success', text: 'Your password has been changed. Sign in with your new password.' },
-}
-
-/** The one sign-in page for users, staff and canteen. */
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; reset?: string }> }) {
+/** Main portal: Google only. First-time Google users get a USER account automatically. */
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   await redirectIfSignedIn()
-  const sp = await searchParams
-  const notice = sp.error ? NOTICES[sp.error] : sp.reset ? NOTICES.reset : undefined
+  const { error } = await searchParams
   return (
-    <AuthShell title="Welcome Back" subtitle="Sign in to your CampusBite account.">
-      <LoginForm notice={notice} />
-      <p className="mt-8 text-center text-sm text-muted">
-        New to CampusBite?{' '}
-        <Link href="/signup" className="font-semibold text-primary hover:underline">
-          Create an account
-        </Link>
+    <AuthShell title="Welcome to CampusBite" subtitle="Sign in to order your favourite food">
+      <GoogleSignIn portal="user" notice={loginNotice('USER', error)} />
+      <p className="mt-8 text-center text-xs text-subtle">
+        New here? Continue with Google and your account is created instantly.
+      </p>
+      <p className="mt-6 text-center text-sm text-muted">
+        <Link href="/login/staff" className="font-medium hover:text-primary hover:underline">Staff login</Link>
+        <span className="mx-2 text-subtle">·</span>
+        <Link href="/login/canteen" className="font-medium hover:text-primary hover:underline">Kitchen login</Link>
       </p>
     </AuthShell>
   )

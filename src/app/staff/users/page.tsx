@@ -12,7 +12,6 @@ import { ButtonLink, Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/form'
 import { EmptyState, Notice, PageHeader } from '@/components/ui/misc'
 import { UserAccessButton } from '@/components/staff/buttons'
-import { AddUserForm } from '@/components/staff/add-user-form'
 
 export const metadata: Metadata = { title: 'Users' }
 export const dynamic = 'force-dynamic'
@@ -50,8 +49,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="User Management" description="Students, teachers and college employees who order food on CampusBite. Accounts are created here only." />
-      <AddUserForm />
+      <PageHeader title="User Management" description="Students, teachers and college employees who order food on CampusBite." />
       <Notice tone="info" className="mb-6">
         Revoking access signs the user out and blocks ordering. Their order and payment history is kept.
       </Notice>

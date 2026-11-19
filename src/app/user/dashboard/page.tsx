@@ -24,10 +24,10 @@ function greeting(tz: string) {
 export default async function UserHome({
   searchParams,
 }: {
-  searchParams: Promise<{ activated?: string; passwordReset?: string; category?: string }>
+  searchParams: Promise<{ welcome?: string; category?: string }>
 }) {
   const user = await requirePortalUser('USER')
-  const { activated, passwordReset, category } = await searchParams
+  const { welcome, category } = await searchParams
   const [active, menu, settings, notifications] = await Promise.all([
     getActiveOrders(user.id),
     getMenu(),
@@ -38,8 +38,7 @@ export default async function UserHome({
 
   return (
     <div className="space-y-6">
-      {activated && <Notice tone="success" title="Your CampusBite account is ready!">Welcome aboard — you can start ordering right away.</Notice>}
-      {passwordReset && <Notice tone="success" title="Your password has been updated">You&apos;ve been signed out on other devices.</Notice>}
+      {welcome && <Notice tone="success" title="Your CampusBite account is ready!">Welcome aboard — you can start ordering right away.</Notice>}
 
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>

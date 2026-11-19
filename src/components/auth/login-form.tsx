@@ -1,12 +1,4 @@
-'use client'
-
-import { useActionState, useState } from 'react'
-import Link from 'next/link'
-import { Eye, EyeOff } from 'lucide-react'
-import { loginAction, type FormState } from '@/app/actions/auth'
-import { Field, Input } from '@/components/ui/form'
 import { Notice } from '@/components/ui/misc'
-import { SubmitButton } from '@/components/ui/client'
 
 /** Google's "G" mark, as required on a "Continue with Google" button. */
 function GoogleMark() {
@@ -20,71 +12,23 @@ function GoogleMark() {
   )
 }
 
-/** Full page navigation: the server starts the Google sign-in (PKCE). */
-export function GoogleButton() {
-  return (
-    <a
-      href="/auth/google"
-      className="flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-line bg-surface px-4 font-semibold text-ink shadow-sm transition hover:border-primary/40 hover:bg-primary-soft/40"
-    >
-      <GoogleMark /> Continue with Google
-    </a>
-  )
-}
-
-export function LoginForm({ notice }: { notice?: { tone: 'danger' | 'success' | 'info'; text: string } }) {
-  const [state, action] = useActionState<FormState, FormData>(loginAction, undefined)
-  const [show, setShow] = useState(false)
+/** The only way to sign in: a full-page jump to Google (the server starts the PKCE flow). */
+export function GoogleSignIn({
+  portal,
+  notice,
+}: {
+  portal: 'user' | 'staff' | 'canteen'
+  notice?: { tone: 'danger' | 'success' | 'info'; text: string }
+}) {
   return (
     <div className="space-y-5">
-      {notice && !state?.error && <Notice tone={notice.tone}>{notice.text}</Notice>}
-
-      <GoogleButton />
-
-      <div className="flex items-center gap-3 text-xs font-semibold tracking-wide text-subtle uppercase" role="separator">
-        <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
-      </div>
-
-      <form action={action} className="space-y-4" noValidate>
-        {state?.error && <Notice tone="danger">{state.error}</Notice>}
-        <Field label="Email address" htmlFor="email">
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="username"
-            inputMode="email"
-            required
-            defaultValue={state?.email}
-            placeholder="you@example.com"
-          />
-        </Field>
-        <Field label="Password" htmlFor="password">
-          <div className="relative">
-            <Input id="password" name="password" type={show ? 'text' : 'password'} autoComplete="current-password" required className="pr-12" />
-            <button
-              type="button"
-              onClick={() => setShow((v) => !v)}
-              className="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted hover:bg-primary-soft hover:text-primary"
-              aria-label={show ? 'Hide password' : 'Show password'}
-              aria-pressed={show}
-            >
-              {show ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
-            </button>
-          </div>
-        </Field>
-        <div className="flex items-center justify-between gap-3">
-          <label className="inline-flex min-h-11 items-center gap-2 text-sm text-ink">
-            <input type="checkbox" name="remember" defaultChecked className="h-4 w-4 rounded border-line accent-primary" /> Remember me
-          </label>
-          <Link href="/forgot-password" className="inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline">
-            Forgot Password?
-          </Link>
-        </div>
-        <SubmitButton size="lg" className="w-full" pendingText="Signing in…">
-          Sign In
-        </SubmitButton>
-      </form>
+      {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
+      <a
+        href={`/auth/google?portal=${portal}`}
+        className="flex min-h-13 w-full items-center justify-center gap-3 rounded-xl border border-line bg-surface px-4 text-base font-semibold text-ink shadow-sm transition hover:border-primary/40 hover:bg-primary-soft/40"
+      >
+        <GoogleMark /> Continue with Google
+      </a>
     </div>
   )
 }

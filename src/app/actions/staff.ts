@@ -3,8 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { toActionError, type ActionResult } from '@/lib/errors'
 import { requireActor } from '@/lib/auth/guards'
-import { inviteUser } from '@/lib/auth/user-auth'
-import { createAccount, resetAccountPassword, setAccountStatus, setUserAccess, updateAccountPermissions } from '@/lib/admin'
+import { createAccount, setAccountStatus, setUserAccess, updateAccountPermissions } from '@/lib/admin'
 import { changeOrderStatus } from '@/lib/orders/transitions'
 import { confirmRefundCredited, createPartialRefund, processRefund, syncRefund } from '@/lib/payments/refunds'
 
@@ -20,14 +19,14 @@ export async function setUserAccessAction(userId: string, active: boolean): Prom
 }
 
 export async function createAccountAction(
-  _prev: ActionResult<{ tempPassword: string; email: string }> | undefined,
+  _prev: ActionResult<{ email: string }> | undefined,
   formData: FormData,
-): Promise<ActionResult<{ tempPassword: string; email: string }>> {
+): Promise<ActionResult<{ email: string }>> {
   try {
     const actor = await requireActor('STAFF')
     const kind = formData.get('kind') === 'STAFF' ? 'STAFF' : 'CANTEEN'
     const email = String(formData.get('email') ?? '')
-    const r = await createAccount(actor, {
+    await createAccount(actor, {
       kind,
       email,
       name: String(formData.get('name') ?? ''),
@@ -35,7 +34,7 @@ export async function createAccountAction(
       permissions: formData.getAll('permissions').map(String),
     })
     revalidatePath(kind === 'STAFF' ? '/staff/team' : '/staff/canteen')
-    return { ok: true, data: { tempPassword: r.tempPassword, email: email.trim().toLowerCase() } }
+    return { ok: true, data: { email: email.trim().toLowerCase() } }
   } catch (e) {
     return toActionError(e)
   }
@@ -60,16 +59,6 @@ export async function setAccountStatusAction(userId: string, active: boolean): P
     revalidatePath('/staff/canteen')
     revalidatePath('/staff/team')
     return { ok: true, data: undefined, message: active ? 'Account reactivated.' : 'Account deactivated.' }
-  } catch (e) {
-    return toActionError(e)
-  }
-}
-
-export async function resetPasswordAction(userId: string): Promise<ActionResult<{ tempPassword: string }>> {
-  try {
-    const actor = await requireActor('STAFF')
-    const r = await resetAccountPassword(actor, userId)
-    return { ok: true, data: r }
   } catch (e) {
     return toActionError(e)
   }
@@ -146,24 +135,6 @@ export async function staffCancelOrderAction(orderId: string, reason: string): P
     await changeOrderStatus(actor, { orderId, to: 'REFUND_PENDING', reason })
     revalidatePath('/staff/payments')
     return { ok: true, data: undefined, message: 'Order cancelled and refund started.' }
-  } catch (e) {
-    return toActionError(e)
-  }
-}
-
-/** Staff-only account creation for customers (there is no public sign-up). */
-export async function inviteUserAction(_prev: ActionResult<{ email: string }> | undefined, formData: FormData): Promise<ActionResult<{ email: string }>> {
-  try {
-    const actor = await requireActor('STAFF', 'USERS')
-    const email = String(formData.get('email') ?? '').trim().toLowerCase()
-    await inviteUser(actor, {
-      email,
-      fullName: String(formData.get('fullName') ?? ''),
-      phone: String(formData.get('phone') ?? '') || undefined,
-      department: String(formData.get('department') ?? '') || undefined,
-    })
-    revalidatePath('/staff/users')
-    return { ok: true, data: { email } }
   } catch (e) {
     return toActionError(e)
   }

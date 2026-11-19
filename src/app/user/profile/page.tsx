@@ -2,13 +2,12 @@ import type { Metadata } from 'next'
 import { db } from '@/lib/db'
 import { requirePortalUser } from '@/lib/auth/guards'
 import { PersonalInfo } from './personal-info'
-import { AccountSecurity } from './account-security'
 import { DeleteAccount } from './delete-account'
 
 export const metadata: Metadata = { title: 'Profile' }
 export const dynamic = 'force-dynamic'
 
-/** Simple settings page: see your details, edit when needed, password and delete tucked away. */
+/** Simple settings page: see your details, edit when needed; sign-in is Google; delete tucked away. */
 export default async function ProfilePage() {
   const user = await requirePortalUser('USER')
   const profile = await db.userProfile.findUnique({ where: { userId: user.id } })
@@ -28,9 +27,9 @@ export default async function ProfilePage() {
       />
 
       <section aria-labelledby="security-title">
-        <h2 id="security-title" className="mb-3 text-lg font-semibold text-ink">Account Security</h2>
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6">
-          <AccountSecurity />
+        <h2 id="security-title" className="mb-3 text-lg font-semibold text-ink">Sign-in</h2>
+        <div className="rounded-2xl border border-line bg-surface p-5 text-sm text-muted shadow-card sm:p-6">
+          You sign in with <strong className="text-ink">Google</strong> using this email. There&apos;s no CampusBite password to manage.
         </div>
       </section>
 

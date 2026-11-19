@@ -48,7 +48,7 @@ const FEATURES = [
   { Icon: Smartphone, title: 'Online UPI payments', text: 'Pay with any UPI app. No cash, no change, no hassle.' },
   { Icon: Bell, title: 'Live order tracking', text: 'Watch your order move from accepted to ready in real time.' },
   { Icon: Clock, title: 'Easy pickup', text: 'Choose a pickup slot and collect with a one-time pickup code.' },
-  { Icon: GraduationCap, title: 'Verified accounts', text: 'Sign up with Google or your Gmail address. Every email is verified before you can order.' },
+  { Icon: GraduationCap, title: 'Verified accounts', text: 'Sign in with Google in one tap. No passwords, no codes.' },
 ]
 
 export default async function LandingPage() {

@@ -6,8 +6,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PORTALS: Record<string, string> = {
   '/user': '/login',
-  '/canteen': '/login',
-  '/staff': '/login',
+  '/canteen': '/login/canteen',
+  '/staff': '/login/staff',
 }
 
 export function middleware(req: NextRequest) {

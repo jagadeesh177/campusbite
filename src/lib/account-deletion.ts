@@ -5,16 +5,15 @@ import { audit } from '@/lib/audit'
 import { AppError } from '@/lib/errors'
 import type { Actor } from '@/lib/auth/guards'
 import { enforceRateLimit } from '@/lib/auth/rate-limit'
-import { verifyPassword } from '@/lib/auth/password'
-import { createSupabaseAuthClient, supabaseConfig } from '@/lib/auth/supabase'
 
 /**
  * Permanent, self-service deletion of a USER account. It cannot be undone.
  *
- * - The user re-enters their password and types DELETE.
+ * - The signed-in user types DELETE (accounts sign in with Google; there is no password).
  * - Orders that are being prepared, ready or awaiting a refund block deletion
  *   (money or food is still in flight). Unpaid orders are cancelled.
- * - Their Supabase login is deleted (public.delete_own_user(), see README).
+ * - The CampusBite account is unlinked from Google; signing in with Google again later
+ *   starts a brand-new, empty account.
  * - No orders: the CampusBite account row is deleted completely.
  *   With orders: all personal data is erased and the account is anonymised —
  *   orders and payments stay only as anonymous records for the canteen's accounts.
@@ -28,26 +27,16 @@ const IN_PROGRESS: OrderStatus[] = ['CONFIRMED', 'ACCEPTED', 'PREPARING', 'READY
 
 export async function deleteOwnAccount(
   actor: Actor,
-  input: { password: string; confirm: string },
+  input: { confirm: string },
 ): Promise<{ anonymised: boolean }> {
   if (actor.role !== 'USER') throw new AppError('FORBIDDEN', 'Only user accounts can be deleted here.')
   if ((input.confirm ?? '').trim() !== DELETE_CONFIRM_WORD) {
     throw new AppError('VALIDATION', `Type ${DELETE_CONFIRM_WORD} to confirm.`)
   }
-  if (!input.password) throw new AppError('VALIDATION', 'Enter your password.')
   await enforceRateLimit(`account-delete:${actor.userId}`, 5, 15 * 60)
 
   const user = await db.user.findUnique({ where: { id: actor.userId } })
   if (!user || user.role !== 'USER') throw new AppError('NOT_FOUND', 'Account not found.')
-
-  // 1. Password check (Supabase for registered users; local hash for older demo accounts)
-  const sb = user.supabaseUserId && supabaseConfig().configured ? createSupabaseAuthClient() : null
-  if (sb) {
-    const { error } = await sb.auth.signInWithPassword({ email: user.email, password: input.password })
-    if (error) throw new AppError('UNAUTHORIZED', 'Incorrect password.')
-  } else if (!(await verifyPassword(input.password, user.passwordHash))) {
-    throw new AppError('UNAUTHORIZED', 'Incorrect password.')
-  }
 
   // 2. Nothing may be in flight
   const busy = await db.order.findFirst({
@@ -55,22 +44,12 @@ export async function deleteOwnAccount(
     select: { orderNumber: true, status: true },
   })
   if (busy) {
-    await sb?.auth.signOut()
     throw new AppError(
       'CONFLICT',
       busy.status === 'REFUND_PENDING'
         ? `Order ${busy.orderNumber} is waiting for a refund. You can delete your account once the refund is complete.`
         : `Order ${busy.orderNumber} is still in progress. You can delete your account after it has been collected.`,
     )
-  }
-
-  // 3. Delete the Supabase login (while we hold the user's own session)
-  let supabase: 'deleted' | 'failed' | 'none' = 'none'
-  if (sb) {
-    const { error } = await sb.rpc('delete_own_user')
-    supabase = error ? 'failed' : 'deleted'
-    if (error) console.error('[account-deletion] Supabase login not deleted', error.code, error.message)
-    await sb.auth.signOut().catch(() => undefined)
   }
 
   // 4. Erase CampusBite data
@@ -114,7 +93,7 @@ export async function deleteOwnAccount(
         action: 'user.account_deleted',
         entityType: 'User',
         entityId: user.id,
-        metadata: { anonymised: orderCount > 0, orders: orderCount, supabaseLogin: supabase },
+        metadata: { anonymised: orderCount > 0, orders: orderCount },
       },
       tx,
     )

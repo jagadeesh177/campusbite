@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useActionState, useState } from 'react'
-import { KeyRound, Loader2, Pencil, UserPlus } from 'lucide-react'
-import { createAccountAction, resetPasswordAction, setAccountStatusAction, updatePermissionsAction } from '@/app/actions/staff'
+import { Loader2, Pencil, UserPlus } from 'lucide-react'
+import { createAccountAction, setAccountStatusAction, updatePermissionsAction } from '@/app/actions/staff'
 import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -23,15 +23,14 @@ export interface AccountRow {
   isSelf: boolean
 }
 
-function TempPassword({ email, password, onDone }: { email: string; password: string; onDone: () => void }) {
+function Created({ email, onDone }: { email: string; onDone: () => void }) {
   return (
-    <Notice tone="success" title="Share these sign-in details securely (shown once)">
-      <div className="mt-2 grid gap-1 font-mono text-sm">
-        <span>Email: {email}</span>
-        <span>Temporary password: <strong>{password}</strong></span>
-      </div>
-      <p className="mt-2">They must choose a new password the first time they sign in.</p>
-      <button onClick={onDone} className="mt-2 font-semibold underline">I&apos;ve shared it — hide</button>
+    <Notice tone="success" title="Account created">
+      <p>
+        <strong>{email}</strong> can now sign in with <strong>Continue with Google</strong> using that Google account. No password is
+        needed.
+      </p>
+      <button onClick={onDone} className="mt-2 font-semibold underline">Hide</button>
     </Notice>
   )
 }
@@ -48,13 +47,12 @@ export function AccountsManager({
   labelName: string
 }) {
   const router = useRouter()
-  const [createState, createAction] = useActionState<ActionResult<{ tempPassword: string; email: string }> | undefined, FormData>(createAccountAction, undefined)
+  const [createState, createAction] = useActionState<ActionResult<{ email: string }> | undefined, FormData>(createAccountAction, undefined)
   const [showCreate, setShowCreate] = useState(false)
   const [hideCreated, setHideCreated] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
-  const [reset, setReset] = useState<{ email: string; password: string } | null>(null)
   const [flash, setFlash] = useFlash()
 
   const created = createState?.ok && !hideCreated ? createState.data : null
@@ -70,13 +68,12 @@ export function AccountsManager({
 
   return (
     <div className="space-y-6">
-      {created && <TempPassword email={created.email} password={created.tempPassword} onDone={() => setHideCreated(true)} />}
-      {reset && <TempPassword email={reset.email} password={reset.password} onDone={() => setReset(null)} />}
+      {created && <Created email={created.email} onDone={() => setHideCreated(true)} />}
 
       <Card>
         <CardHeader
           title={kind === 'CANTEEN' ? 'Canteen operators' : 'Staff accounts'}
-          description="Accounts can only be created here by authorised administrators."
+          description="Only authorised administrators can add accounts here. People sign in with Continue with Google using the email you enter."
           action={
             <Button onClick={() => { setShowCreate((s) => !s); setHideCreated(false) }}>
               <UserPlus className="h-4.5 w-4.5" /> New account
@@ -93,7 +90,7 @@ export function AccountsManager({
               {createState && !createState.ok && <Notice tone="danger">{createState.error}</Notice>}
               <div className="grid gap-4 sm:grid-cols-3">
                 <Field label="Full name" htmlFor="name"><Input id="name" name="name" required maxLength={80} /></Field>
-                <Field label="Email" htmlFor="email"><Input id="email" name="email" type="email" required placeholder="name@college.edu" /></Field>
+                <Field label="Google email" htmlFor="email"><Input id="email" name="email" type="email" required placeholder="name@gmail.com" /></Field>
                 <Field label={labelName} htmlFor="label"><Input id="label" name="label" maxLength={60} /></Field>
               </div>
               <fieldset>
@@ -129,19 +126,6 @@ export function AccountsManager({
                       <Button variant="ghost" size="sm" onClick={() => { setEditing(a.id); setDraft(a.permissions) }}>
                         <Pencil className="h-4 w-4" /> Permissions
                       </Button>
-                      <ConfirmDialog
-                        trigger={<><KeyRound className="h-4 w-4" /> Reset password</>}
-                        triggerVariant="ghost"
-                        triggerSize="sm"
-                        title={`Reset password for ${a.name}?`}
-                        description="They’ll be signed out and must set a new password with the temporary one."
-                        confirmLabel="Reset"
-                        onConfirm={async () => {
-                          const r = await resetPasswordAction(a.id)
-                          if (r.ok) setReset({ email: a.email, password: r.data.tempPassword })
-                          else setFlash({ tone: 'danger', text: r.error })
-                        }}
-                      />
                       <ConfirmDialog
                         trigger={a.status === 'ACTIVE' ? 'Deactivate' : 'Reactivate'}
                         triggerVariant={a.status === 'ACTIVE' ? 'danger-ghost' : 'soft'}

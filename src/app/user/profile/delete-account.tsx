@@ -14,8 +14,7 @@ export function DeleteAccount() {
   const [state, action] = useActionState<DeleteAccountState, FormData>(deleteAccountAction, undefined)
   const [open, setOpen] = useState(false)
   const [confirm, setConfirm] = useState('')
-  const [password, setPassword] = useState('')
-  const ready = confirm.trim() === WORD && password.length > 0
+  const ready = confirm.trim() === WORD
 
   if (!open) {
     return (
@@ -38,25 +37,14 @@ export function DeleteAccount() {
         <div>
           <p className="font-semibold">This permanently deletes your account. It cannot be undone.</p>
           <ul className="mt-1 list-disc space-y-0.5 pl-4">
-            <li>Your name, email, mobile number, preferences and login are erased.</li>
-            <li>You&apos;ll be signed out everywhere and can&apos;t sign in again with this account.</li>
+            <li>Your name, email, mobile number and preferences are erased.</li>
+            <li>You&apos;ll be signed out everywhere. Signing in with Google again later starts a new, empty account.</li>
             <li>Unpaid orders are cancelled. Past orders stay only as anonymous records for the canteen&apos;s accounts.</li>
             <li>If an order is being prepared or a refund is pending, wait until it&apos;s finished.</li>
           </ul>
         </div>
       </div>
       {state?.error && <Notice tone="danger">{state.error}</Notice>}
-      <Field label="Your password" htmlFor="delete-password">
-        <Input
-          id="delete-password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-      </Field>
       <Field label={<>Type <strong>{WORD}</strong> to confirm</>} htmlFor="delete-confirm">
         <Input
           id="delete-confirm"
@@ -72,7 +60,7 @@ export function DeleteAccount() {
         <SubmitButton variant="danger" pendingText="Deleting…" disabled={!ready}>
           <Trash2 className="h-4 w-4" /> Permanently delete my account
         </SubmitButton>
-        <Button variant="secondary" onClick={() => { setOpen(false); setConfirm(''); setPassword('') }}>
+        <Button variant="secondary" onClick={() => { setOpen(false); setConfirm('') }}>
           Cancel
         </Button>
       </div>

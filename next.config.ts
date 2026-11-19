@@ -40,12 +40,16 @@ const nextConfig: NextConfig = {
   // The STUDENT role became USER: keep old links and bookmarks working
   async redirects() {
     return [
-      // One sign-in page for everyone; no public sign-up
+      // Google sign-in only: old password / sign-up / reset pages go to the login page
       { source: '/login/student', destination: '/login', permanent: true },
       { source: '/login/user', destination: '/login', permanent: true },
-      { source: '/login/staff', destination: '/login', permanent: true },
-      { source: '/login/canteen', destination: '/login', permanent: true },
-      { source: '/activate', destination: '/signup', permanent: false },
+      { source: '/login/kitchen', destination: '/login/canteen', permanent: true },
+      { source: '/activate', destination: '/login', permanent: true },
+      { source: '/signup', destination: '/login', permanent: true },
+      { source: '/forgot-password', destination: '/login', permanent: true },
+      { source: '/reset-password', destination: '/login', permanent: true },
+      { source: '/auth/confirm', destination: '/login', permanent: true },
+      { source: '/account/password', destination: '/', permanent: true },
       { source: '/student', destination: '/user/dashboard', permanent: true },
       { source: '/student/:path*', destination: '/user/:path*', permanent: true },
       { source: '/staff/students', destination: '/staff/users', permanent: true },
