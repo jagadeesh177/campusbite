@@ -11,7 +11,7 @@ import { cn } from '@/lib/cn'
 import { PASSWORD_RULES, strength } from './set-password-form'
 import { GoogleButton } from './login-form'
 
-/** Step 1: name, Gmail, password. Step 2: the 6-digit code from the email. */
+/** Step 1: name, Gmail, password. Step 2: the code from the email. */
 export function SignupForm() {
   const [state, action] = useActionState<SignupState, FormData>(signupAction, undefined)
   const [password, setPassword] = useState('')
@@ -44,7 +44,7 @@ export function SignupForm() {
               maxLength={10}
               required
               autoFocus
-              placeholder="6-digit code"
+              placeholder="Code from the email"
               className="text-center font-mono text-lg tracking-[0.4em]"
             />
           </Field>
