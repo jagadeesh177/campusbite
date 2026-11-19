@@ -53,8 +53,3 @@ export function allowedTransitions(from: OrderStatusValue, actor: ActorKind): Or
     .filter(([, actors]) => actors.includes(actor))
     .map(([to]) => to)
 }
-
-/** Statuses in which the user's money has been taken and not returned. */
-export function isPaidStatus(s: OrderStatusValue): boolean {
-  return ['CONFIRMED', 'ACCEPTED', 'PREPARING', 'READY', 'COLLECTED', 'REFUND_PENDING'].includes(s)
-}

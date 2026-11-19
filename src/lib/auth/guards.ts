@@ -29,10 +29,6 @@ export function toActor(u: SessionUser): Actor {
   return { userId: u.id, role: u.role, name: u.name, permissions: u.permissions }
 }
 
-export function hasPermission(actor: Pick<Actor, 'permissions'>, permission: Permission) {
-  return actor.permissions.includes(permission)
-}
-
 /**
  * For pages and layouts: redirects instead of throwing. The role always comes
  * from the database session — never from anything the browser sends.

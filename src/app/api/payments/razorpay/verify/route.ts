@@ -3,6 +3,7 @@ import { requireActor } from '@/lib/auth/guards'
 import { AppError } from '@/lib/errors'
 import { env } from '@/lib/env'
 import { verifyRazorpayCheckout } from '@/lib/payments/razorpay-handlers'
+import { enforceRateLimit } from '@/lib/auth/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +16,7 @@ export async function POST(req: Request) {
   }
   try {
     const actor = await requireActor('USER')
+    await enforceRateLimit(`pay-verify:${actor.userId}`, 20, 10 * 60)
     const body = await req.json().catch(() => ({}))
     const r = await verifyRazorpayCheckout(actor, body)
     if (r.outcome === 'rejected') return NextResponse.json({ error: 'Payment could not be verified.' }, { status: 400 })
@@ -22,7 +24,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ outcome: r.outcome, orderId: 'orderId' in r ? r.orderId : undefined })
   } catch (e) {
     if (e instanceof AppError) {
-      const status = e.code === 'UNAUTHORIZED' ? 401 : e.code === 'NOT_FOUND' ? 404 : 400
+      const status = e.code === 'UNAUTHORIZED' ? 401 : e.code === 'NOT_FOUND' ? 404 : e.code === 'RATE_LIMITED' ? 429 : 400
       return NextResponse.json({ error: e.message }, { status })
     }
     console.error('[razorpay/verify]', e)

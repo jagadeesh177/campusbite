@@ -7,6 +7,7 @@ import { withTxRetry } from '@/lib/tx'
 import { generatePickupToken } from '@/lib/orders/codes'
 import { recordStatusChange } from '@/lib/orders/events'
 import { processRefund } from './refunds'
+import { getRazorpayGateway } from './gateway'
 
 /** status_check = looked up via Razorpay's API after a missed callback/webhook */
 export type VerifiedVia = 'checkout_signature' | 'webhook' | 'status_check' | 'simulator'
@@ -166,7 +167,42 @@ export async function confirmPayment(p: ConfirmPaymentInput): Promise<ConfirmOut
       console.error('[payments] automatic refund failed; left for staff', e)
     }
   }
+  if (result.outcome === 'rejected' && result.reason === 'duplicate_capture' && p.verifiedVia !== 'simulator') {
+    await refundDuplicateCapture(p, result.orderId)
+  }
   return result
+}
+
+/**
+ * The customer paid twice for one order (e.g. two tabs). The first payment
+ * confirmed the order; this second captured payment is returned in full.
+ * Idempotent: the refund is tagged with the payment id, and a retried webhook
+ * finds the existing refund instead of sending another (Razorpay also refuses
+ * to refund more than was captured).
+ */
+async function refundDuplicateCapture(p: ConfirmPaymentInput, orderId: string | undefined) {
+  const refundId = `dup_${p.gatewayPaymentId}`.slice(0, 40)
+  try {
+    const gateway = getRazorpayGateway()
+    const existing = await gateway.findRefund(p.gatewayPaymentId, refundId)
+    const refund =
+      existing ??
+      (await gateway.refund({
+        refundId,
+        gatewayPaymentId: p.gatewayPaymentId,
+        amountPaise: p.amountPaise,
+        notes: { reason: 'Duplicate payment for one order', orderId: orderId ?? '' },
+      }))
+    await audit({
+      action: 'payment.duplicate_refunded',
+      entityType: 'Order',
+      entityId: orderId,
+      metadata: { gatewayPaymentId: p.gatewayPaymentId, gatewayRefundId: refund.gatewayRefundId, amountPaise: p.amountPaise },
+    })
+  } catch (e) {
+    // Left in the audit log (payment.duplicate_capture) for staff to refund by hand
+    console.error('[payments] duplicate payment refund failed', p.gatewayPaymentId, e instanceof Error ? e.message : e)
+  }
 }
 
 /** A failed attempt does not cancel the order — the user can retry until it expires. */

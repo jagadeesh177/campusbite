@@ -26,29 +26,6 @@ export const ORDER_STATUS_LABEL: Record<OrderStatusValue, string> = {
   REFUNDED: 'Refunded',
 }
 
-export type Tone = 'neutral' | 'info' | 'warning' | 'success' | 'danger' | 'brand'
-
-export const ORDER_STATUS_TONE: Record<OrderStatusValue, Tone> = {
-  PAYMENT_PENDING: 'warning',
-  CONFIRMED: 'info',
-  ACCEPTED: 'info',
-  PREPARING: 'brand',
-  READY: 'success',
-  COLLECTED: 'neutral',
-  CANCELLED: 'danger',
-  REFUND_PENDING: 'warning',
-  REFUNDED: 'neutral',
-}
-
-/** The happy-path steps shown in the visual tracker. */
-export const TRACKER_STEPS: { status: OrderStatusValue; label: string }[] = [
-  { status: 'CONFIRMED', label: 'Paid' },
-  { status: 'ACCEPTED', label: 'Accepted' },
-  { status: 'PREPARING', label: 'Preparing' },
-  { status: 'READY', label: 'Ready' },
-  { status: 'COLLECTED', label: 'Collected' },
-]
-
 export const ACTIVE_ORDER_STATUSES: OrderStatusValue[] = [
   'PAYMENT_PENDING',
   'CONFIRMED',
@@ -62,11 +39,4 @@ export const PAYMENT_STATUS_LABEL: Record<string, string> = {
   SUCCEEDED: 'Paid',
   FAILED: 'Failed',
   REFUNDED: 'Refund sent', // Razorpay sent it back; bank credit is confirmed separately
-}
-
-export const PAYMENT_STATUS_TONE: Record<string, Tone> = {
-  CREATED: 'warning',
-  SUCCEEDED: 'success',
-  FAILED: 'danger',
-  REFUNDED: 'neutral',
 }

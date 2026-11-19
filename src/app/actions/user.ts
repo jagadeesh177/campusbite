@@ -12,6 +12,7 @@ import { simulatePayment } from '@/lib/payments/simulator'
 import { reconcileRazorpayPayment } from '@/lib/payments/razorpay-handlers'
 import { deleteOwnAccount } from '@/lib/account-deletion'
 import { destroySession } from '@/lib/auth/session'
+import { enforceRateLimit } from '@/lib/auth/rate-limit'
 
 const linesSchema = z.array(z.object({ foodItemId: z.string().max(40), quantity: z.number().int().min(1).max(10) })).max(15)
 
@@ -57,6 +58,7 @@ export async function cancelOrderAction(orderId: string): Promise<ActionResult<{
 export async function checkPaymentStatusAction(orderId: string): Promise<ActionResult<{ status: string }>> {
   try {
     const actor = await requireActor('USER')
+    await enforceRateLimit(`pay-check:${actor.userId}`, 20, 10 * 60)
     const payment = await db.payment.findFirst({
       where: { order: { id: String(orderId).slice(0, 40), userId: actor.userId }, provider: 'RAZORPAY' },
       orderBy: { createdAt: 'desc' },

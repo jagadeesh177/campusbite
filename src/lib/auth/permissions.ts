@@ -21,11 +21,3 @@ export const STAFF_PERMISSIONS = {
 export type CanteenPermission = keyof typeof CANTEEN_PERMISSIONS
 export type StaffPermission = keyof typeof STAFF_PERMISSIONS
 export type Permission = CanteenPermission | StaffPermission
-
-export function isCanteenPermission(p: string): p is CanteenPermission {
-  return p in CANTEEN_PERMISSIONS
-}
-
-export function isStaffPermission(p: string): p is StaffPermission {
-  return p in STAFF_PERMISSIONS
-}

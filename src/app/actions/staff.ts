@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { toActionError, type ActionResult } from '@/lib/errors'
 import { requireActor } from '@/lib/auth/guards'
 import { createAccount, resetAccountPassword, setAccountStatus, setUserAccess, updateAccountPermissions } from '@/lib/admin'
-import { changeOrderStatus } from '@/lib/orders/transitions'
 import { confirmRefundCredited, createPartialRefund, processRefund, syncRefund } from '@/lib/payments/refunds'
 
 export async function setUserAccessAction(userId: string, active: boolean): Promise<ActionResult> {
@@ -134,17 +133,6 @@ export async function partialRefundAction(paymentId: string, amountRupees: strin
     const r = await createPartialRefund(actor, { paymentId: String(paymentId).slice(0, 40), amountPaise: Math.round(rupees * 100), reason: String(reason ?? '') })
     revalidatePath('/staff/payments')
     return { ok: true, data: { outcome: r.outcome }, message: 'Refund sent to Razorpay.' }
-  } catch (e) {
-    return toActionError(e)
-  }
-}
-
-export async function staffCancelOrderAction(orderId: string, reason: string): Promise<ActionResult> {
-  try {
-    const actor = await requireActor('STAFF', 'PAYMENTS')
-    await changeOrderStatus(actor, { orderId, to: 'REFUND_PENDING', reason })
-    revalidatePath('/staff/payments')
-    return { ok: true, data: undefined, message: 'Order cancelled and refund started.' }
   } catch (e) {
     return toActionError(e)
   }

@@ -80,6 +80,9 @@ export async function saveFoodItem(actor: Actor, input: z.input<typeof foodItemS
   const d = parsed.data
   const category = await db.foodCategory.findUnique({ where: { id: d.categoryId } })
   if (!category) throw new AppError('VALIDATION', 'Choose a valid category.')
+  if (d.id && !(await db.foodItem.findUnique({ where: { id: d.id }, select: { id: true } }))) {
+    throw new AppError('NOT_FOUND', 'Item not found.')
+  }
   const imageUrl = image && image.size > 0 ? await storeFoodImage(image) : undefined
 
   const data = {

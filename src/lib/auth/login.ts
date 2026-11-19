@@ -34,7 +34,10 @@ export async function authenticate(
   if (!parsed.success) throw new AppError('VALIDATION', 'Enter your email and password.')
   const { email, password } = parsed.data
 
-  await enforceRateLimit(`login:${email}`, 5, 15 * 60)
+  // Tight per (email, network) so guessing is slow; a looser per-email cap stops
+  // distributed guessing without letting one stranger lock the real owner out.
+  await enforceRateLimit(`login:${email}:${ip ?? '-'}`, 5, 15 * 60)
+  await enforceRateLimit(`login:${email}`, 30, 60 * 60)
   if (ip) await enforceRateLimit(`login-ip:${ip}`, 40, 15 * 60)
 
   const candidate = await db.user.findUnique({ where: { email } })

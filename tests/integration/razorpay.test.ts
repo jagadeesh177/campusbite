@@ -12,6 +12,7 @@ const fake = vi.hoisted(() => ({
   payments: new Map<string, FakePayment>(),
   captures: 0,
   seq: 0,
+  refunds: [] as { id: string; payment_id: string; amount: number; status: string; notes: Record<string, string> }[],
 }))
 
 vi.mock('razorpay', () => ({
@@ -37,7 +38,12 @@ vi.mock('razorpay', () => ({
         fake.captures++
         return p
       },
-      refund: async () => ({ id: `rfnd_test${++fake.seq}`, status: 'processed' }),
+      refund: async (paymentId: string, o: { amount: number; notes: Record<string, string> }) => {
+        const r = { id: `rfnd_test${++fake.seq}`, payment_id: paymentId, amount: o.amount, status: 'pending', notes: o.notes }
+        fake.refunds.push(r)
+        return r
+      },
+      fetchMultipleRefund: async (paymentId: string) => ({ items: fake.refunds.filter((r) => r.payment_id === paymentId) }),
     }
   },
 }))
@@ -78,6 +84,7 @@ beforeEach(async () => {
   fake.orders.clear()
   fake.payments.clear()
   fake.captures = 0
+  fake.refunds.length = 0
 })
 
 async function newOrder() {
@@ -206,7 +213,7 @@ describe('Razorpay checkout verification', () => {
     expect(fake.orders.size).toBe(1)
   })
 
-  it('a second, different captured payment for a paid order is flagged, not double-confirmed', async () => {
+  it('a second, different captured payment for a paid order is flagged and refunded once, never double-confirmed', async () => {
     const { actor, co } = await newOrder()
     const p1 = customerPays(co.gatewayOrderId, 'captured')
     await verifyRazorpayCheckout(actor, { razorpay_order_id: co.gatewayOrderId, razorpay_payment_id: p1, razorpay_signature: checkoutSig(co.gatewayOrderId, p1) })
@@ -214,6 +221,15 @@ describe('Razorpay checkout verification', () => {
     const r = await verifyRazorpayCheckout(actor, { razorpay_order_id: co.gatewayOrderId, razorpay_payment_id: p2, razorpay_signature: checkoutSig(co.gatewayOrderId, p2) })
     expect(r.outcome).toBe('rejected')
     expect(await prisma.auditLog.count({ where: { action: 'payment.duplicate_capture' } })).toBe(1)
+    // The duplicate is returned in full, and only the duplicate
+    expect(fake.refunds).toHaveLength(1)
+    expect(fake.refunds[0]).toMatchObject({ payment_id: p2, amount: fake.payments.get(p2)!.amount })
+    // A retried webhook for the same duplicate does not refund it again
+    const body = JSON.stringify({ event: 'payment.captured', payload: { payment: { entity: { ...fake.payments.get(p2), order_id: co.gatewayOrderId } } } })
+    expect((await handleRazorpayWebhook(body, webhookSig(body), 'evt_dup_1')).status).toBe(200)
+    expect(fake.refunds).toHaveLength(1)
+    expect(await prisma.auditLog.count({ where: { action: 'payment.duplicate_refunded' } })).toBe(2)
+    expect((await prisma.payment.findFirstOrThrow({ where: { orderId: co.orderId } })).gatewayPaymentId).toBe(p1)
   })
 
   it('a missed callback is recovered before the order expires (not wrongly cancelled)', async () => {
