@@ -136,15 +136,15 @@ export class RazorpayGateway implements PaymentGateway {
   }
 
   /**
-   * Instant refund when possible: speed "optimum" makes Razorpay use the instant
-   * route where the bank/method supports it and fall back to normal (5–7 working
-   * days) otherwise. The response is NOT treated as confirmation; refund.processed
-   * (or a later status lookup) is.
+   * Normal-speed refund (free; usually 5–7 working days to reach the customer's
+   * bank). Instant refunds ("optimum") cost a fee per refund, so they are not used.
+   * The response is NOT treated as confirmation; refund.processed (or a later
+   * status lookup) is.
    */
   async refund(i: GatewayRefundInput): Promise<GatewayRefund> {
     const r = await this.client.payments.refund(i.gatewayPaymentId, {
       amount: i.amountPaise,
-      speed: 'optimum',
+      speed: 'normal',
       receipt: i.refundId,
       notes: { ...i.notes, refundId: i.refundId },
     })
@@ -182,8 +182,8 @@ export class SimulatorGateway implements PaymentGateway {
       gatewayRefundId: `sim_rfnd_${randomBytes(10).toString('hex')}`,
       status: 'processed',
       amountPaise: i.amountPaise,
-      speedRequested: 'optimum',
-      speedProcessed: 'instant',
+      speedRequested: 'normal',
+      speedProcessed: 'normal',
       bankReference: null,
       simulated: true,
     }

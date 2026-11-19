@@ -111,15 +111,15 @@ async function deliver(body: string, id = `evt_${uuid()}`) {
 }
 
 describe('requesting a refund', () => {
-  it('asks Razorpay for the fastest speed (optimum) with our refund id, for the exact amount', async () => {
+  it('asks Razorpay for a normal-speed (free) refund with our refund id, for the exact amount', async () => {
     const { actor, co } = await paidOrder()
     await cancelOrderAsUser(actor, co.orderId)
     expect(fake.refundCalls).toHaveLength(1)
-    expect(fake.refundCalls[0].params).toMatchObject({ amount: co.amountPaise, speed: 'optimum' })
+    expect(fake.refundCalls[0].params).toMatchObject({ amount: co.amountPaise, speed: 'normal' })
     const refund = await refundOf(co.orderId)
     expect(fake.refundCalls[0].params.receipt).toBe(refund.id)
     expect(refund.status).toBe('PROCESSING')
-    expect(refund.speedRequested).toBe('optimum')
+    expect(refund.speedRequested).toBe('normal')
     expect(await orderStatus(co.orderId)).toBe('REFUND_PENDING')
   })
 

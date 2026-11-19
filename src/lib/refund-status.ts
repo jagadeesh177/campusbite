@@ -53,7 +53,7 @@ export function expectedCreditText(status: RefundStatusValue, speedProcessed: st
   if (status === 'CREDITED' || status === 'FAILED' || status === 'REVERSED') return null
   if (speedProcessed === 'instant') return 'Sent by the instant route. Most banks show it within minutes to a few hours.'
   if (speedProcessed === 'normal') return 'Sent by the normal route. Usually 5–7 working days after Razorpay processes it.'
-  return 'Usually 5–7 working days. Faster if your bank supports instant refunds.'
+  return 'Usually 5–7 working days after Razorpay processes it, depending on your bank.'
 }
 
 export const SUPPORT_EMAIL = 'easalajagadeesh@gmail.com'
