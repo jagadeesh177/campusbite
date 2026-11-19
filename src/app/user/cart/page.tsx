@@ -12,7 +12,7 @@ export default async function CartPage() {
   const user = await requirePortalUser('USER')
   return (
     <>
-      <PageHeader title="Your cart" description="Check your items, pick a time and pay." />
+      <PageHeader title="Your cart" />
       <CheckoutView
         tz={env.timezone}
         provider={env.paymentProvider === 'razorpay' ? 'razorpay' : 'simulator'}
