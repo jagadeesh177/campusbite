@@ -25,7 +25,7 @@ export default async function StaffDashboard({ searchParams }: { searchParams: P
       where: { status: { not: 'PAYMENT_PENDING' } },
       orderBy: { createdAt: 'desc' },
       take: 8,
-      include: { user: { select: { name: true } } },
+      include: { user: { select: { name: true } }, refunds: { select: { status: true }, take: 1 } },
     }),
   ])
   const k = data.kpis
@@ -68,7 +68,7 @@ export default async function StaffDashboard({ searchParams }: { searchParams: P
             {latest.map((o) => (
               <li key={o.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-6 py-3">
                 <span className="font-mono font-semibold">{o.orderNumber}</span>
-                <OrderStatusBadge status={o.status} />
+                <OrderStatusBadge status={o.status} refundStatus={o.refunds[0]?.status} />
                 <span className="min-w-0 flex-1 truncate text-sm text-muted">{o.user.name}</span>
                 <span className="font-semibold tabular-nums">{formatINR(rupeesToPaise(o.total))}</span>
                 <span className="w-full text-xs text-subtle sm:w-auto">{formatDateTime(o.createdAt, env.timezone)}</span>

@@ -47,7 +47,7 @@ export async function cancelOrderAction(orderId: string): Promise<ActionResult<{
     return {
       ok: true,
       data: { refund: r.refund },
-      message: r.status === 'CANCELLED' ? 'Order cancelled.' : 'Order cancelled — your refund has been started.',
+      message: r.status === 'CANCELLED' ? 'Order cancelled.' : 'Order cancelled. Your refund request has been submitted. Track it on this page.',
     }
   } catch (e) {
     return toActionError(e)

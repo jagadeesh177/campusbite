@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { env } from '@/lib/env'
 import { expireStalePendingOrders } from '@/lib/orders/expire'
 import { reconcilePendingRazorpay } from '@/lib/payments/razorpay-handlers'
+import { reconcilePendingRefunds } from '@/lib/payments/refunds'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +14,7 @@ export async function GET(req: Request) {
     return new Response('Unauthorized', { status: 401 })
   }
   const reconciled = await reconcilePendingRazorpay() // safety net for missed webhooks
+  const refundsChecked = await reconcilePendingRefunds() // refunds still waiting on Razorpay
   const expired = await expireStalePendingOrders()
-  return Response.json({ expired, reconciled })
+  return Response.json({ expired, reconciled, refundsChecked })
 }

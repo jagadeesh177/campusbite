@@ -87,7 +87,7 @@ export async function staffDashboard() {
     db.order.count({ where: { collectedAt: { gte: todayStart }, status: 'COLLECTED' } }),
     salesSeries('day', since14),
     topItems(since30, 5),
-    db.refund.count({ where: { status: { in: ['PENDING', 'FAILED'] } } }),
+    db.refund.count({ where: { status: { in: ['NOT_REQUESTED', 'FAILED', 'REVERSED'] } } }),
   ])
 
   return {

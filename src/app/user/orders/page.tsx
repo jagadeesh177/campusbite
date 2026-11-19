@@ -52,7 +52,7 @@ export default async function MyOrdersPage({ searchParams }: { searchParams: Pro
                     <Link href={`/user/orders/${o.id}`} className="font-display text-lg font-bold text-ink hover:text-primary">
                       {o.orderNumber}
                     </Link>
-                    <OrderStatusBadge status={o.status} />
+                    <OrderStatusBadge status={o.status} refundStatus={o.refund?.status} />
                     {o.payment && <PaymentStatusBadge status={o.payment.status} />}
                   </div>
                   <div className="mt-1 text-sm text-muted">{formatDateTime(o.createdAt, env.timezone)}</div>
@@ -98,7 +98,7 @@ export default async function MyOrdersPage({ searchParams }: { searchParams: Pro
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold">{o.orderNumber}</span>
-                        <OrderStatusBadge status={o.status} />
+                        <OrderStatusBadge status={o.status} refundStatus={o.refund?.status} />
                       </div>
                       <div className="mt-0.5 truncate text-sm text-muted">{o.items.map((i) => `${i.name} × ${i.quantity}`).join(', ')}</div>
                     </div>

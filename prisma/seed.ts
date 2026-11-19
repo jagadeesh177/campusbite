@@ -273,9 +273,12 @@ async function main() {
           paymentId: payment.id,
           amount: paiseToDecimalString(total),
           reason: 'Item ran out before preparation',
-          status: opts.status === 'REFUNDED' ? 'PROCESSED' : 'PENDING',
+          // Demo data: a REFUNDED order means bank credit was confirmed
+          status: opts.status === 'REFUNDED' ? 'CREDITED' : 'NOT_REQUESTED',
           gatewayRefundId: opts.status === 'REFUNDED' ? `seed_rfnd_${seq}` : null,
           processedAt: opts.status === 'REFUNDED' ? at(30) : null,
+          creditedAt: opts.status === 'REFUNDED' ? at(60) : null,
+          creditEvidence: opts.status === 'REFUNDED' ? 'Demo data' : null,
           createdAt: at(4),
         },
       })

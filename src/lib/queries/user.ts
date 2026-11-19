@@ -72,7 +72,20 @@ function toOrderView<T extends Awaited<ReturnType<typeof loadOrders>>[number]>(o
       ? { id: payment.id, status: payment.status, provider: payment.provider, method: payment.method, reference: payment.gatewayPaymentId }
       : null,
     pickupToken: o.pickupToken?.token ?? null,
-    refund: o.refunds[0] ? { status: o.refunds[0].status, amountPaise: rupeesToPaise(o.refunds[0].amount) } : null,
+    refund: o.refunds[0]
+      ? {
+          id: o.refunds[0].id,
+          status: o.refunds[0].status,
+          amountPaise: rupeesToPaise(o.refunds[0].amount),
+          requestedAt: o.refunds[0].requestedAt ?? o.refunds[0].createdAt,
+          reference: o.refunds[0].gatewayRefundId?.startsWith('rfnd_') ? o.refunds[0].gatewayRefundId : null,
+          bankReference: o.refunds[0].bankReference,
+          processedAt: o.refunds[0].processedAt,
+          creditedAt: o.refunds[0].creditedAt,
+          speedProcessed: o.refunds[0].speedProcessed,
+          checkedAt: o.refunds[0].checkedAt,
+        }
+      : null,
     canCancel: allowedTransitions(o.status, 'USER').length > 0,
   }
 }

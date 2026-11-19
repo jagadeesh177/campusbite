@@ -22,7 +22,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
     where: { id, role: 'USER' },
     include: {
       userProfile: true,
-      orders: { orderBy: { createdAt: 'desc' }, take: 50, include: { items: true } },
+      orders: { orderBy: { createdAt: 'desc' }, take: 50, include: { items: true, refunds: { select: { status: true }, take: 1 } } },
     },
   })
   if (!user) notFound()
@@ -69,7 +69,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-sm font-semibold">{o.orderNumber}</span>
-                    <OrderStatusBadge status={o.status} />
+                    <OrderStatusBadge status={o.status} refundStatus={o.refunds[0]?.status} />
                   </div>
                   <div className="truncate text-sm text-muted">{o.items.map((i) => `${i.nameSnapshot} ×${i.quantity}`).join(', ')}</div>
                 </div>

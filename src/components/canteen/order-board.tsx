@@ -68,7 +68,7 @@ export function OrderBoard({ orders, tz }: { orders: BoardOrder[]; tz: string })
   async function act(order: BoardOrder, to: OrderStatusValue, reason?: string) {
     const r = await changeStatusAction(order.id, to, reason)
     if (r.ok) {
-      const refundNote = r.data.refund === 'processed' ? ' Refund sent.' : r.data.refund === 'failed' ? ' Refund needs staff attention.' : ''
+      const refundNote = r.data.refund === 'failed' ? ' Refund needs staff attention.' : r.data.refund ? ' Refund requested from Razorpay.' : ''
       setFlash({ tone: 'success', text: `${order.orderNumber} updated.${refundNote}` })
     } else setFlash({ tone: 'danger', text: r.error })
     router.refresh()
@@ -178,7 +178,7 @@ function OrderCard({
           {o.studentId && <div className="text-xs text-subtle">{o.studentId}</div>}
         </div>
         <div className="flex flex-col items-end gap-1">
-          {isNew ? <span className="rounded-full bg-info px-2 py-0.5 text-[11px] font-bold text-white">NEW</span> : <OrderStatusBadge status={o.status} />}
+          {isNew ? <span className="rounded-full bg-info px-2 py-0.5 text-[11px] font-bold text-white">NEW</span> : <OrderStatusBadge status={o.status} refundStatus={o.refundStatus} />}
           <span className="text-xs text-subtle">{minutesAgo(o.createdAt, now)}</span>
         </div>
       </div>
@@ -246,7 +246,7 @@ function RejectButton({ order, onAct }: { order: BoardOrder; onAct: (o: BoardOrd
       triggerVariant="danger-ghost"
       triggerSize="icon-lg"
       title={`Reject ${order.orderNumber}?`}
-      description={`${order.userName} has already paid ${formatINR(order.totalPaise)}. A full refund will be started automatically.`}
+      description={`${order.userName} has already paid ${formatINR(order.totalPaise)}. A full refund will be requested from Razorpay automatically.`}
       requireReason
       reasonLabel="Reason (shown to the user)"
       reasonPlaceholder="e.g. Samosas sold out"

@@ -10,20 +10,73 @@ export interface CreateGatewayOrderInput {
   notes?: Record<string, string>
 }
 
-export interface GatewayRefundResult {
+export interface GatewayRefundInput {
+  /** Our Refund.id — sent as receipt + note so a retry can find an existing refund */
+  refundId: string
+  gatewayPaymentId: string
+  amountPaise: number
+  notes?: Record<string, string>
+}
+
+/** A refund exactly as the gateway reports it. */
+export interface GatewayRefund {
   gatewayRefundId: string
-  /** false when the gateway accepted the refund but settles it later (webhook) */
-  processed: boolean
+  status: 'pending' | 'processed' | 'failed'
+  amountPaise: number
+  speedRequested: string | null
+  speedProcessed: string | null
+  bankReference: string | null
+  /** Only the development simulator sets this: its "refund" is final immediately */
+  simulated?: boolean
 }
 
 export interface PaymentGateway {
   readonly provider: PaymentProvider
   createOrder(input: CreateGatewayOrderInput): Promise<{ gatewayOrderId: string }>
-  refund(input: {
-    gatewayPaymentId: string
-    amountPaise: number
-    notes?: Record<string, string>
-  }): Promise<GatewayRefundResult>
+  refund(input: GatewayRefundInput): Promise<GatewayRefund>
+  /** The refund for our Refund.id, if one was already created (e.g. a timed-out request) */
+  findRefund(gatewayPaymentId: string, refundId: string): Promise<GatewayRefund | null>
+  fetchRefund(gatewayPaymentId: string, gatewayRefundId: string): Promise<GatewayRefund>
+}
+
+type RazorpayRefundEntity = {
+  id: string
+  status: string
+  amount: number | string
+  receipt?: string | null
+  notes?: Record<string, unknown> | unknown[]
+  speed_requested?: string | null
+  speed_processed?: string | null
+  acquirer_data?: Record<string, unknown> | null
+}
+
+export function toGatewayRefund(r: RazorpayRefundEntity): GatewayRefund {
+  const a = (r.acquirer_data ?? {}) as Record<string, unknown>
+  const ref = [a.arn, a.rrn, a.utr].find((v) => typeof v === 'string' && v) as string | undefined
+  const status = r.status === 'processed' || r.status === 'failed' ? r.status : 'pending'
+  return {
+    gatewayRefundId: r.id,
+    status,
+    amountPaise: Number(r.amount),
+    speedRequested: r.speed_requested ?? null,
+    speedProcessed: r.speed_processed ?? null,
+    bankReference: ref ?? null,
+  }
+}
+
+function refundNoteId(r: RazorpayRefundEntity): string | null {
+  const n = r.notes && !Array.isArray(r.notes) ? (r.notes as Record<string, unknown>).refundId : null
+  return typeof n === 'string' ? n : (r.receipt ?? null)
+}
+
+/** Readable text from a Razorpay SDK error ({ statusCode, error: { description } }). */
+export function gatewayErrorText(e: unknown): string {
+  const err = e as { error?: { description?: string }; message?: string }
+  return (err?.error?.description || err?.message || String(e)).slice(0, 300)
+}
+
+export function isInsufficientBalance(e: unknown): boolean {
+  return /not have enough balance|insufficient balance|low balance/i.test(gatewayErrorText(e))
 }
 
 // ---------------------------------------------------------------------------
@@ -82,13 +135,33 @@ export class RazorpayGateway implements PaymentGateway {
     return { status: p.status }
   }
 
-  async refund(i: { gatewayPaymentId: string; amountPaise: number; notes?: Record<string, string> }) {
+  /**
+   * Instant refund when possible: speed "optimum" makes Razorpay use the instant
+   * route where the bank/method supports it and fall back to normal (5–7 working
+   * days) otherwise. The response is NOT treated as confirmation; refund.processed
+   * (or a later status lookup) is.
+   */
+  async refund(i: GatewayRefundInput): Promise<GatewayRefund> {
     const r = await this.client.payments.refund(i.gatewayPaymentId, {
       amount: i.amountPaise,
-      speed: 'normal',
-      notes: i.notes,
+      speed: 'optimum',
+      receipt: i.refundId,
+      notes: { ...i.notes, refundId: i.refundId },
     })
-    return { gatewayRefundId: r.id, processed: r.status === 'processed' }
+    return toGatewayRefund(r as unknown as RazorpayRefundEntity)
+  }
+
+  async findRefund(gatewayPaymentId: string, refundId: string): Promise<GatewayRefund | null> {
+    const list = await this.client.payments.fetchMultipleRefund(gatewayPaymentId, { count: 100 })
+    const mine = (list.items as unknown as RazorpayRefundEntity[]).filter((r) => refundNoteId(r) === refundId)
+    // After a failed attempt and a retry there can be two; the live one wins
+    const found = mine.find((r) => r.status !== 'failed') ?? mine[0]
+    return found ? toGatewayRefund(found) : null
+  }
+
+  async fetchRefund(gatewayPaymentId: string, gatewayRefundId: string): Promise<GatewayRefund> {
+    const r = await this.client.payments.fetchRefund(gatewayPaymentId, gatewayRefundId)
+    return toGatewayRefund(r as unknown as RazorpayRefundEntity)
   }
 }
 
@@ -103,8 +176,25 @@ export class SimulatorGateway implements PaymentGateway {
     return { gatewayOrderId: `sim_order_${randomBytes(10).toString('hex')}` }
   }
 
-  async refund() {
-    return { gatewayRefundId: `sim_rfnd_${randomBytes(10).toString('hex')}`, processed: true }
+  // Simulated refunds move no money; they are final at once and clearly marked.
+  async refund(i: GatewayRefundInput): Promise<GatewayRefund> {
+    return {
+      gatewayRefundId: `sim_rfnd_${randomBytes(10).toString('hex')}`,
+      status: 'processed',
+      amountPaise: i.amountPaise,
+      speedRequested: 'optimum',
+      speedProcessed: 'instant',
+      bankReference: null,
+      simulated: true,
+    }
+  }
+
+  async findRefund() {
+    return null
+  }
+
+  async fetchRefund(): Promise<GatewayRefund> {
+    throw new Error('Simulated refunds have no gateway record')
   }
 }
 

@@ -1,4 +1,5 @@
 import 'server-only'
+import type { RefundStatusValue } from '@/lib/refund-status'
 import { db } from '@/lib/db'
 import { env } from '@/lib/env'
 import { rupeesToPaise } from '@/lib/money'
@@ -20,6 +21,7 @@ export interface BoardOrder {
   pickupSlotStart: string | null
   estimatedReadyAt: string | null
   cancelReason: string | null
+  refundStatus: RefundStatusValue | null
 }
 
 export async function getKitchenBoard() {
@@ -40,6 +42,7 @@ export async function getKitchenBoard() {
       user: { select: { name: true, userProfile: { select: { externalStudentId: true } } } },
       payments: { where: { status: { in: ['SUCCEEDED', 'REFUNDED'] } }, take: 1 },
       pickupToken: true,
+      refunds: { select: { status: true }, take: 1 },
     },
     take: 300,
   })
@@ -58,6 +61,7 @@ export async function getKitchenBoard() {
     pickupSlotStart: o.pickupSlotStart?.toISOString() ?? null,
     estimatedReadyAt: o.estimatedReadyAt?.toISOString() ?? null,
     cancelReason: o.cancelReason,
+    refundStatus: o.refunds[0]?.status ?? null,
   }))
 
   const sales = await db.order.aggregate({

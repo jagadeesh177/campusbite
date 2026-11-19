@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { REFUND_LABEL, REFUND_STAFF_LABEL, REFUND_TONE, type RefundStatusValue } from '@/lib/refund-status'
 import { cn } from '@/lib/cn'
 import {
   ORDER_STATUS_LABEL,
@@ -76,10 +77,33 @@ export const STATUS_TONE: Record<OrderStatusValue, BadgeTone> = {
   REFUNDED: 'neutral',
 }
 
-export function OrderStatusBadge({ status, className }: { status: OrderStatusValue; className?: string }) {
+/**
+ * Order badge. For orders with a refund, pass the refund's status so the badge
+ * shows the real refund progress ("Refund processed" ≠ "Refunded").
+ */
+export function OrderStatusBadge({
+  status,
+  refundStatus,
+  className,
+}: {
+  status: OrderStatusValue
+  refundStatus?: RefundStatusValue | null
+  className?: string
+}) {
+  if (refundStatus && (status === 'REFUND_PENDING' || status === 'REFUNDED')) {
+    return <RefundStatusBadge status={refundStatus} className={className} />
+  }
   return (
     <Badge tone={STATUS_TONE[status]} dot className={className}>
       {ORDER_STATUS_LABEL[status]}
+    </Badge>
+  )
+}
+
+export function RefundStatusBadge({ status, staff, className }: { status: RefundStatusValue; staff?: boolean; className?: string }) {
+  return (
+    <Badge tone={REFUND_TONE[status]} dot className={className}>
+      {(staff ? REFUND_STAFF_LABEL : REFUND_LABEL)[status]}
     </Badge>
   )
 }

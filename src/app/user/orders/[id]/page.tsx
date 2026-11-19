@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CheckPaymentButton } from '@/components/user/check-payment-button'
+import { REFUND_LABEL, REFUND_MESSAGE, SUPPORT_EMAIL, expectedCreditText } from '@/lib/refund-status'
+import { syncRefund } from '@/lib/payments/refunds'
 import { ArrowLeft, Clock, ReceiptText } from 'lucide-react'
 import { requirePortalUser } from '@/lib/auth/guards'
 import { env } from '@/lib/env'
@@ -28,8 +30,14 @@ export default async function OrderDetailPage({
 }) {
   const user = await requirePortalUser('USER')
   const [{ id }, sp] = await Promise.all([params, searchParams])
-  const order = await getUserOrder(user.id, id)
+  let order = await getUserOrder(user.id, id)
   if (!order) notFound()
+  // Refund still with Razorpay: ask Razorpay directly (at most once a minute)
+  const r = order.refund
+  if (r && (r.status === 'REQUESTED' || r.status === 'PROCESSING') && (!r.checkedAt || Date.now() - r.checkedAt.getTime() > 60_000)) {
+    const changed = await syncRefund(r.id).catch(() => null)
+    if (changed === 'processed' || changed === 'failed') order = (await getUserOrder(user.id, id)) ?? order
+  }
   const tz = env.timezone
   const showToken = order.pickupToken && ['CONFIRMED', 'ACCEPTED', 'PREPARING', 'READY'].includes(order.status)
 
@@ -46,7 +54,7 @@ export default async function OrderDetailPage({
           </h1>
           <div className="mt-1 text-sm text-muted">Placed {formatDateTime(order.createdAt, tz)}</div>
         </div>
-        <OrderStatusBadge status={order.status} className="text-sm" />
+        <OrderStatusBadge status={order.status} refundStatus={order.refund?.status} className="text-sm" />
       </div>
 
       {sp.paid && order.status === 'CONFIRMED' && (
@@ -93,18 +101,13 @@ export default async function OrderDetailPage({
             </Card>
           )}
 
-          {(order.status === 'CANCELLED' || order.status === 'REFUND_PENDING' || order.status === 'REFUNDED') && (
-            <Notice
-              tone={order.status === 'CANCELLED' ? 'danger' : 'info'}
-              title={order.status === 'CANCELLED' ? 'Order cancelled' : order.status === 'REFUNDED' ? 'Refund completed' : 'Refund in progress'}
-            >
-              {order.cancelReason && <>Reason: {order.cancelReason}. </>}
-              {order.refund &&
-                (order.refund.status === 'PROCESSED'
-                  ? `${formatINR(order.refund.amountPaise)} has been refunded to your original payment method.`
-                  : `${formatINR(order.refund.amountPaise)} will be refunded to your original payment method (usually 5–7 working days).`)}
+          {order.status === 'CANCELLED' && !order.refund && (
+            <Notice tone="danger" title="Order cancelled">
+              {order.cancelReason && <>Reason: {order.cancelReason}. </>}No payment was taken for this order.
             </Notice>
           )}
+
+          {order.refund && <RefundPanel refund={order.refund} cancelReason={order.cancelReason} method={order.payment?.method ?? null} tz={tz} />}
 
           <Card>
             <CardHeader title={<span className="inline-flex items-center gap-2"><ReceiptText className="h-4.5 w-4.5 text-accent" /> Items</span>} />
@@ -179,5 +182,41 @@ export default async function OrderDetailPage({
         </div>
       </div>
     </div>
+  )
+}
+
+type RefundView = NonNullable<NonNullable<Awaited<ReturnType<typeof getUserOrder>>>['refund']>
+
+/** The same refund status and wording as staff and canteen see (lib/refund-status). */
+function RefundPanel({ refund, cancelReason, method, tz }: { refund: RefundView; cancelReason: string | null; method: string | null; tz: string }) {
+  const tone = refund.status === 'CREDITED' ? 'success' : refund.status === 'FAILED' || refund.status === 'REVERSED' ? 'danger' : 'info'
+  const expected = expectedCreditText(refund.status, refund.speedProcessed)
+  const problem = refund.status === 'FAILED' || refund.status === 'REVERSED'
+  return (
+    <Notice tone={tone} title={REFUND_LABEL[refund.status]}>
+      <p>{REFUND_MESSAGE[refund.status]}</p>
+      <dl className="mt-3 grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+        <div><dt className="inline text-muted">Amount: </dt><dd className="inline font-semibold">{formatINR(refund.amountPaise)}</dd></div>
+        {method && <div><dt className="inline text-muted">To: </dt><dd className="inline">your original payment method ({method})</dd></div>}
+        <div><dt className="inline text-muted">Requested: </dt><dd className="inline">{formatDateTime(refund.requestedAt, tz)}</dd></div>
+        {refund.processedAt && (
+          <div><dt className="inline text-muted">Processed by Razorpay: </dt><dd className="inline">{formatDateTime(refund.processedAt, tz)}</dd></div>
+        )}
+        {refund.creditedAt && (
+          <div><dt className="inline text-muted">Bank credit confirmed: </dt><dd className="inline">{formatDateTime(refund.creditedAt, tz)}</dd></div>
+        )}
+        {refund.reference && <div><dt className="inline text-muted">Razorpay refund ID: </dt><dd className="inline font-mono">{refund.reference}</dd></div>}
+        {refund.bankReference && <div><dt className="inline text-muted">Bank reference (ARN/UTR): </dt><dd className="inline font-mono">{refund.bankReference}</dd></div>}
+      </dl>
+      {expected && <p className="mt-3 text-sm text-muted">{expected}</p>}
+      {cancelReason && <p className="mt-2 text-sm text-muted">Cancellation reason: {cancelReason}</p>}
+      {(problem || refund.status === 'PROCESSED') && (
+        <p className="mt-3 text-sm">
+          {problem ? 'Please contact support' : 'Not received after 7 working days? Contact support'} at{' '}
+          <a className="font-semibold underline" href={`mailto:${SUPPORT_EMAIL}?subject=Refund%20for%20order`}>{SUPPORT_EMAIL}</a>
+          {refund.bankReference ? ' and quote the bank reference above, which your bank can trace.' : ' with your order number.'}
+        </p>
+      )}
+    </Notice>
   )
 }

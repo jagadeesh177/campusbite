@@ -60,11 +60,22 @@ enum PaymentStatus {
 }
 
 enum RefundStatus {
-  PENDING
-  /// Claimed by one worker; prevents double refunds on concurrent clicks
+  /// Refund record exists; nothing has been sent to Razorpay yet
+  NOT_REQUESTED
+  /// REFUND_REQUESTED — submitted to Razorpay (one worker at a time; prevents duplicates)
+  REQUESTED
+  /// REFUND_PROCESSING — Razorpay accepted it and is processing
   PROCESSING
+  /// REFUND_PROCESSED — Razorpay confirmed it processed the refund. Money may still
+  /// be on its way to the customer's bank. This is NOT proof of bank credit.
   PROCESSED
+  /// REFUNDED — bank credit confirmed by authorised staff with evidence
+  /// (Razorpay has no API that confirms the customer's bank credit)
+  CREDITED
+  /// REFUND_FAILED — can be retried safely
   FAILED
+  /// REFUND_REVERSED — processed, then reported failed/returned
+  REVERSED
 }
 
 // ---------------------------------------------------------------------------
@@ -95,6 +106,7 @@ model User {
   auditLogs        AuditLog[]           @relation("AuditActor")
   statusChanges    OrderStatusHistory[] @relation("StatusChangedBy")
   refundsInitiated Refund[]             @relation("RefundInitiatedBy")
+  refundsCreditConfirmed Refund[] @relation("RefundCreditConfirmedBy")
   pickupsVerified  PickupToken[]        @relation("PickupVerifiedBy")
 
   @@index([role, status])
@@ -326,9 +338,22 @@ model Refund {
   paymentId       String
   payment         Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
   amount          Decimal      @db.Decimal(10, 2)
-  status          RefundStatus @default(PENDING)
+  status          RefundStatus @default(NOT_REQUESTED)
   reason          String
   gatewayRefundId String?      @unique
+  /// Speed we asked for (optimum = instant when possible) and what Razorpay used (instant | normal)
+  speedRequested  String?
+  speedProcessed  String?
+  /// Bank reference (ARN/RRN/UTR) from Razorpay, for the customer to trace with their bank
+  bankReference   String?
+  requestedAt     DateTime?
+  /// Last time we asked Razorpay for this refund's status
+  checkedAt       DateTime?
+  /// Bank credit confirmation (manual, by staff with PAYMENTS permission)
+  creditedAt          DateTime?
+  creditConfirmedById String?
+  creditConfirmedBy   User?     @relation("RefundCreditConfirmedBy", fields: [creditConfirmedById], references: [id], onDelete: SetNull)
+  creditEvidence      String?
   initiatedById   String?
   initiatedBy     User?        @relation("RefundInitiatedBy", fields: [initiatedById], references: [id], onDelete: SetNull)
   failureReason   String?

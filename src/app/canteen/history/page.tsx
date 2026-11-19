@@ -34,7 +34,7 @@ export default async function CanteenHistory({ searchParams }: { searchParams: P
       orderBy: { updatedAt: 'desc' },
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
-      include: { user: { select: { name: true } }, items: { select: { nameSnapshot: true, quantity: true } } },
+      include: { user: { select: { name: true } }, items: { select: { nameSnapshot: true, quantity: true } }, refunds: { select: { status: true }, take: 1 } },
     }),
     db.order.count({ where }),
   ])
@@ -59,7 +59,7 @@ export default async function CanteenHistory({ searchParams }: { searchParams: P
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono font-semibold">{o.orderNumber}</span>
-                    <OrderStatusBadge status={o.status} />
+                    <OrderStatusBadge status={o.status} refundStatus={o.refunds[0]?.status} />
                     <span className="text-sm text-muted">{o.user.name}</span>
                   </div>
                   <div className="mt-0.5 truncate text-sm text-muted">{o.items.map((i) => `${i.nameSnapshot} × ${i.quantity}`).join(', ')}</div>

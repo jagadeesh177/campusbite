@@ -14,10 +14,10 @@ const STUDENT_MESSAGE: Partial<
   COLLECTED: (n) => ({ title: 'Order collected', body: `Enjoy your meal! Order ${n} has been collected.` }),
   CANCELLED: (n, note) => ({ title: 'Order cancelled', body: `Order ${n} was cancelled${note ? `: ${note}` : '.'}` }),
   REFUND_PENDING: (n, note) => ({
-    title: 'Refund initiated',
-    body: `A refund for ${n} has been initiated${note ? ` (${note})` : ''}. It usually reaches your account in 5–7 working days.`,
+    title: 'Refund requested',
+    body: `Your refund request for ${n} has been submitted${note ? ` (${note})` : ''}. We'll show its progress on the order page.`,
   }),
-  REFUNDED: (n) => ({ title: 'Refund completed', body: `The refund for order ${n} has been processed.` }),
+  REFUNDED: (n) => ({ title: 'Refund received', body: `The refund for order ${n} has been credited to your account.` }),
 }
 
 export async function recordStatusChange(

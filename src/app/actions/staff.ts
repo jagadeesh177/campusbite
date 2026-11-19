@@ -5,7 +5,7 @@ import { toActionError, type ActionResult } from '@/lib/errors'
 import { requireActor } from '@/lib/auth/guards'
 import { createAccount, resetAccountPassword, setAccountStatus, setUserAccess, updateAccountPermissions } from '@/lib/admin'
 import { changeOrderStatus } from '@/lib/orders/transitions'
-import { processRefund } from '@/lib/payments/refunds'
+import { confirmRefundCredited, createPartialRefund, processRefund, syncRefund } from '@/lib/payments/refunds'
 
 export async function setUserAccessAction(userId: string, active: boolean): Promise<ActionResult> {
   try {
@@ -82,8 +82,58 @@ export async function processRefundAction(refundId: string): Promise<ActionResul
     return {
       ok: true,
       data: { outcome },
-      message: outcome === 'pending_gateway' ? 'Refund submitted — the gateway will confirm it shortly.' : 'Refund processed.',
+      message:
+        outcome === 'in_progress'
+          ? 'This refund is already with Razorpay. No second refund was sent.'
+          : outcome === 'already_processed'
+            ? 'Razorpay has already processed this refund.'
+            : outcome === 'processed'
+              ? 'Refund processed (test simulator).'
+              : 'Refund sent to Razorpay. Its status updates when Razorpay confirms it.',
     }
+  } catch (e) {
+    return toActionError(e)
+  }
+}
+
+/** Ask Razorpay for a refund's current status. Never creates a refund. */
+export async function checkRefundStatusAction(refundId: string): Promise<ActionResult<{ outcome: string }>> {
+  try {
+    await requireActor('STAFF', 'PAYMENTS')
+    const outcome = await syncRefund(String(refundId).slice(0, 40))
+    revalidatePath('/staff/payments')
+    const message =
+      outcome === 'processed' || outcome === 'already_processed'
+        ? 'Razorpay has processed this refund.'
+        : outcome === 'failed'
+          ? 'Razorpay reports this refund failed. You can retry it.'
+          : 'Still processing at Razorpay.'
+    return { ok: true, data: { outcome }, message }
+  } catch (e) {
+    return toActionError(e)
+  }
+}
+
+/** Mark REFUNDED only with evidence that the customer's bank received it. */
+export async function confirmRefundCreditAction(refundId: string, evidence: string): Promise<ActionResult> {
+  try {
+    const actor = await requireActor('STAFF', 'PAYMENTS')
+    await confirmRefundCredited(actor, String(refundId).slice(0, 40), String(evidence ?? ''))
+    revalidatePath('/staff/payments')
+    return { ok: true, data: undefined, message: 'Marked as refunded. Your name, the time and the evidence were recorded.' }
+  } catch (e) {
+    return toActionError(e)
+  }
+}
+
+export async function partialRefundAction(paymentId: string, amountRupees: string, reason: string): Promise<ActionResult<{ outcome: string }>> {
+  try {
+    const actor = await requireActor('STAFF', 'PAYMENTS')
+    const rupees = Number(String(amountRupees).replace(/[₹,\s]/g, ''))
+    if (!Number.isFinite(rupees)) return { ok: false, error: 'Enter an amount in rupees.' }
+    const r = await createPartialRefund(actor, { paymentId: String(paymentId).slice(0, 40), amountPaise: Math.round(rupees * 100), reason: String(reason ?? '') })
+    revalidatePath('/staff/payments')
+    return { ok: true, data: { outcome: r.outcome }, message: 'Refund sent to Razorpay.' }
   } catch (e) {
     return toActionError(e)
   }

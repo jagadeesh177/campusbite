@@ -156,7 +156,7 @@ describe('payment verification', () => {
     const r = await confirmPayment({ gatewayOrderId: co.gatewayOrderId, gatewayPaymentId: 'pay_late', amountPaise: co.amountPaise, currency: 'INR', verifiedVia: 'webhook' })
     expect(r.outcome).toBe('refund_required')
     const order = await prisma.order.findUniqueOrThrow({ where: { id: co.orderId }, include: { refunds: true } })
-    expect(order.status).toBe('REFUNDED')
+    expect(order.status).toBe('REFUND_PENDING') // processed ≠ bank credit
     expect(order.refunds[0].status).toBe('PROCESSED')
   })
 })
@@ -237,7 +237,7 @@ describe('status transitions & refunds', () => {
     const r = await changeOrderStatus(kitchen, { orderId: co.orderId, to: 'REFUND_PENDING', reason: 'Out of samosas' })
     expect(r.refund).toBe('processed')
     const order = await prisma.order.findUniqueOrThrow({ where: { id: co.orderId }, include: { refunds: true, payments: true } })
-    expect(order.status).toBe('REFUNDED')
+    expect(order.status).toBe('REFUND_PENDING') // processed ≠ bank credit
     expect(order.payments[0].status).toBe('REFUNDED')
     expect(await prisma.auditLog.count({ where: { action: 'refund.processed' } })).toBe(1)
   })
@@ -283,7 +283,7 @@ describe('old simulated payments after the simulator is switched off', () => {
       const r = await changeOrderStatus(kitchen, { orderId: co.orderId, to: 'REFUND_PENDING', reason: 'Not available' })
       expect(r.refund).toBe('processed')
       const order = await prisma.order.findUniqueOrThrow({ where: { id: co.orderId }, include: { refunds: true } })
-      expect(order.status).toBe('REFUNDED')
+      expect(order.status).toBe('REFUND_PENDING')
       expect(order.refunds[0].status).toBe('PROCESSED')
     } finally {
       process.env.PAYMENT_SIMULATOR_ENABLED = prev

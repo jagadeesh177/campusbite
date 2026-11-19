@@ -59,6 +59,7 @@ export default async function StaffOrdersPage({
       include: {
         user: { select: { id: true, name: true } },
         items: { select: { nameSnapshot: true, quantity: true } },
+        refunds: { select: { status: true }, take: 1 },
       },
     }),
     db.order.count({ where }),
@@ -112,7 +113,7 @@ export default async function StaffOrdersPage({
                   <span className="font-semibold tabular-nums">{formatINR(rupeesToPaise(o.total))}</span>
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <OrderStatusBadge status={o.status} />
+                  <OrderStatusBadge status={o.status} refundStatus={o.refunds[0]?.status} />
                   <Link href={`/staff/users/${o.user.id}`} className="text-sm font-medium hover:text-primary hover:underline">{o.user.name}</Link>
                 </div>
                 <p className="mt-1 truncate text-sm text-muted">{o.items.map((i) => `${i.nameSnapshot} × ${i.quantity}`).join(', ')}</p>
@@ -143,7 +144,7 @@ export default async function StaffOrdersPage({
                       {o.items.map((i) => `${i.nameSnapshot} × ${i.quantity}`).join(', ')}
                     </td>
                     <td className="px-3 py-3 text-right font-semibold tabular-nums">{formatINR(rupeesToPaise(o.total))}</td>
-                    <td className="px-3 py-3"><OrderStatusBadge status={o.status} /></td>
+                    <td className="px-3 py-3"><OrderStatusBadge status={o.status} refundStatus={o.refunds[0]?.status} /></td>
                     <td className="px-6 py-3 whitespace-nowrap text-subtle">{formatDateTime(o.createdAt, env.timezone)}</td>
                   </tr>
                 ))}

@@ -10,7 +10,8 @@ import { rupeesToPaise } from '@/lib/money'
 import type { Actor } from '@/lib/auth/guards'
 import { confirmPayment, markPaymentFailed, type ConfirmOutcome, type VerifiedVia } from './confirm'
 import { getRazorpayGateway } from './gateway'
-import { failRefundByGatewayId, finalizeRefundByGatewayId } from './refunds'
+import { applyGatewayRefund, findRefundForGateway, markRefundFailed, recordSpeedChange } from './refunds'
+import { toGatewayRefund } from './gateway'
 import { verifyRazorpayCheckoutSignature, verifyRazorpayWebhookSignature } from './signatures'
 
 export const checkoutCallbackSchema = z.object({
@@ -155,6 +156,51 @@ interface RazorpayEntity {
   currency?: string
   method?: string
   error_description?: string
+  // refund entities
+  status?: string
+  receipt?: string | null
+  notes?: Record<string, unknown> | unknown[]
+  speed_requested?: string | null
+  speed_processed?: string | null
+  acquirer_data?: Record<string, unknown> | null
+}
+
+/**
+ * Refund webhooks. The signed webhook is Razorpay's own confirmation:
+ *   refund.created → PROCESSING · refund.processed → PROCESSED (NOT "Refunded":
+ *   that needs confirmed bank credit) · refund.failed → FAILED, or REVERSED if it
+ *   had been processed · refund.speed_changed → instant fell back to normal.
+ * Out-of-order or repeated events can never move a refund backwards.
+ */
+async function handleRefundEvent(type: string, entity: RazorpayEntity): Promise<string> {
+  const g = toGatewayRefund({
+    id: entity.id,
+    status: type === 'refund.processed' ? 'processed' : type === 'refund.failed' ? 'failed' : (entity.status ?? 'pending'),
+    amount: entity.amount ?? 0,
+    receipt: entity.receipt ?? null,
+    notes: entity.notes,
+    speed_requested: entity.speed_requested,
+    speed_processed: entity.speed_processed,
+    acquirer_data: entity.acquirer_data,
+  })
+  const note = entity.notes && !Array.isArray(entity.notes) ? (entity.notes as Record<string, unknown>).refundId : null
+  const ours = await findRefundForGateway(entity.id, typeof note === 'string' ? note : (entity.receipt ?? null))
+  if (!ours) return 'unknown_refund' // e.g. a refund issued from the Razorpay Dashboard by hand
+
+  if (type === 'refund.speed_changed') {
+    await recordSpeedChange(ours.id, g)
+    return 'refund_speed_changed'
+  }
+  if (type === 'refund.failed') {
+    await markRefundFailed(ours.id, 'Razorpay reported the refund as failed', g)
+    return 'refund_failed'
+  }
+  if (g.status === 'processed' && type !== 'refund.processed') {
+    // e.g. refund.created carrying status processed: record details, wait for refund.processed
+    g.status = 'pending'
+  }
+  const r = await applyGatewayRefund(ours.id, g, 'webhook')
+  return r === 'processed' ? 'refund_processed' : r === 'already_processed' ? 'refund_already_processed' : 'refund_processing'
 }
 
 /**
@@ -224,17 +270,11 @@ export async function handleRazorpayWebhook(
           result = 'marked_failed'
         }
         break
+      case 'refund.created':
       case 'refund.processed':
-        if (refund?.id) {
-          await finalizeRefundByGatewayId(refund.id)
-          result = 'refund_processed'
-        }
-        break
       case 'refund.failed':
-        if (refund?.id) {
-          await failRefundByGatewayId(refund.id, 'Gateway reported refund failure')
-          result = 'refund_failed'
-        }
+      case 'refund.speed_changed':
+        if (refund?.id) result = await handleRefundEvent(event.event, refund)
         break
     }
     await db.webhookEvent.update({ where: { id: record.id }, data: { processedAt: new Date(), result } })

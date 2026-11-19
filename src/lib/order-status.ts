@@ -22,7 +22,7 @@ export const ORDER_STATUS_LABEL: Record<OrderStatusValue, string> = {
   READY: 'Ready for pickup',
   COLLECTED: 'Collected',
   CANCELLED: 'Cancelled',
-  REFUND_PENDING: 'Refund pending',
+  REFUND_PENDING: 'Refund in progress',
   REFUNDED: 'Refunded',
 }
 
@@ -61,7 +61,7 @@ export const PAYMENT_STATUS_LABEL: Record<string, string> = {
   CREATED: 'Awaiting payment',
   SUCCEEDED: 'Paid',
   FAILED: 'Failed',
-  REFUNDED: 'Refunded',
+  REFUNDED: 'Refund sent', // Razorpay sent it back; bank credit is confirmed separately
 }
 
 export const PAYMENT_STATUS_TONE: Record<string, Tone> = {
