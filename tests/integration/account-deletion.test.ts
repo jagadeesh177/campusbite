@@ -15,7 +15,7 @@ async function expectAppError(p: Promise<unknown>, code: InstanceType<typeof App
 }
 
 async function google(email: string) {
-  const start = await startGoogleSignIn('USER')
+  const start = await startGoogleSignIn()
   return finishGoogleSignIn(fake.googleCode(email), start!.state)
 }
 

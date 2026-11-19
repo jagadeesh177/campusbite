@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { toActionError, type ActionResult } from '@/lib/errors'
 import { requireActor } from '@/lib/auth/guards'
-import { createAccount, setAccountStatus, setUserAccess, updateAccountPermissions } from '@/lib/admin'
+import { createAccount, resetAccountPassword, setAccountStatus, setUserAccess, updateAccountPermissions } from '@/lib/admin'
 import { changeOrderStatus } from '@/lib/orders/transitions'
 import { confirmRefundCredited, createPartialRefund, processRefund, syncRefund } from '@/lib/payments/refunds'
 
@@ -19,14 +19,14 @@ export async function setUserAccessAction(userId: string, active: boolean): Prom
 }
 
 export async function createAccountAction(
-  _prev: ActionResult<{ email: string }> | undefined,
+  _prev: ActionResult<{ tempPassword: string; email: string }> | undefined,
   formData: FormData,
-): Promise<ActionResult<{ email: string }>> {
+): Promise<ActionResult<{ tempPassword: string; email: string }>> {
   try {
     const actor = await requireActor('STAFF')
     const kind = formData.get('kind') === 'STAFF' ? 'STAFF' : 'CANTEEN'
     const email = String(formData.get('email') ?? '')
-    await createAccount(actor, {
+    const r = await createAccount(actor, {
       kind,
       email,
       name: String(formData.get('name') ?? ''),
@@ -34,7 +34,7 @@ export async function createAccountAction(
       permissions: formData.getAll('permissions').map(String),
     })
     revalidatePath(kind === 'STAFF' ? '/staff/team' : '/staff/canteen')
-    return { ok: true, data: { email: email.trim().toLowerCase() } }
+    return { ok: true, data: { tempPassword: r.tempPassword, email: email.trim().toLowerCase() } }
   } catch (e) {
     return toActionError(e)
   }
@@ -59,6 +59,16 @@ export async function setAccountStatusAction(userId: string, active: boolean): P
     revalidatePath('/staff/canteen')
     revalidatePath('/staff/team')
     return { ok: true, data: undefined, message: active ? 'Account reactivated.' : 'Account deactivated.' }
+  } catch (e) {
+    return toActionError(e)
+  }
+}
+
+export async function resetPasswordAction(userId: string): Promise<ActionResult<{ tempPassword: string }>> {
+  try {
+    const actor = await requireActor('STAFF')
+    const r = await resetAccountPassword(actor, userId)
+    return { ok: true, data: r }
   } catch (e) {
     return toActionError(e)
   }

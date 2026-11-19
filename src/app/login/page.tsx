@@ -8,13 +8,13 @@ import { redirectIfSignedIn } from '@/components/auth/redirect-if-signed-in'
 export const metadata: Metadata = { title: 'Sign in' }
 export const dynamic = 'force-dynamic'
 
-/** Main portal: Google only. First-time Google users get a USER account automatically. */
+/** Customer sign-in: Google only. First-time Google users get a USER account automatically. */
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   await redirectIfSignedIn()
   const { error } = await searchParams
   return (
     <AuthShell title="Welcome to CampusBite" subtitle="Sign in to order your favourite food">
-      <GoogleSignIn portal="user" notice={loginNotice('USER', error)} />
+      <GoogleSignIn notice={loginNotice(error)} />
       <p className="mt-8 text-center text-xs text-subtle">
         New here? Continue with Google and your account is created instantly.
       </p>

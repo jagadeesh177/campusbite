@@ -1,10 +1,10 @@
-import { NOT_AUTHORIZED, type Portal } from '@/lib/auth/google'
+import { USE_PASSWORD_LOGIN } from '@/lib/auth/google'
 
-/** Messages shown on a login page after a failed or cancelled Google sign-in. */
-export function loginNotice(portal: Portal, error: string | undefined): { tone: 'danger' | 'info'; text: string } | undefined {
+/** Messages shown on the customer login page after a failed or cancelled Google sign-in. */
+export function loginNotice(error: string | undefined): { tone: 'danger' | 'info'; text: string } | undefined {
   switch (error) {
-    case 'not_authorized':
-      return { tone: 'danger', text: NOT_AUTHORIZED[portal] }
+    case 'use_password':
+      return { tone: 'danger', text: USE_PASSWORD_LOGIN }
     case 'deactivated':
       return { tone: 'danger', text: 'This account has been deactivated. Please contact the canteen office.' }
     case 'google_cancelled':

@@ -11,7 +11,7 @@ export default function SupportPage() {
         <p>
           Tap <strong>Continue with Google</strong> and pick your Google account. Your CampusBite account is created
           the first time — there&apos;s no password or code. Always use the same Google account so you see your orders.
-          Staff and kitchen teams use the Staff or Kitchen login with the Google email their administrator registered.
+          Staff and kitchen teams use the Staff or Kitchen login with the email and password their administrator gave them.
         </p>
       </section>
       <section>

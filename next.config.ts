@@ -49,7 +49,6 @@ const nextConfig: NextConfig = {
       { source: '/forgot-password', destination: '/login', permanent: true },
       { source: '/reset-password', destination: '/login', permanent: true },
       { source: '/auth/confirm', destination: '/login', permanent: true },
-      { source: '/account/password', destination: '/', permanent: true },
       { source: '/student', destination: '/user/dashboard', permanent: true },
       { source: '/student/:path*', destination: '/user/:path*', permanent: true },
       { source: '/staff/students', destination: '/staff/users', permanent: true },

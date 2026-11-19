@@ -12,19 +12,13 @@ function GoogleMark() {
   )
 }
 
-/** The only way to sign in: a full-page jump to Google (the server starts the PKCE flow). */
-export function GoogleSignIn({
-  portal,
-  notice,
-}: {
-  portal: 'user' | 'staff' | 'canteen'
-  notice?: { tone: 'danger' | 'success' | 'info'; text: string }
-}) {
+/** Customer sign-in: a full-page jump to Google (the server starts the PKCE flow). */
+export function GoogleSignIn({ notice }: { notice?: { tone: 'danger' | 'success' | 'info'; text: string } }) {
   return (
     <div className="space-y-5">
       {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
       <a
-        href={`/auth/google?portal=${portal}`}
+        href="/auth/google"
         className="flex min-h-13 w-full items-center justify-center gap-3 rounded-xl border border-line bg-surface px-4 text-base font-semibold text-ink shadow-sm transition hover:border-primary/40 hover:bg-primary-soft/40"
       >
         <GoogleMark /> Continue with Google

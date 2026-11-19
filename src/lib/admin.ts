@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { audit } from '@/lib/audit'
 import { AppError } from '@/lib/errors'
 import { revokeAllSessions } from '@/lib/auth/session'
+import { generateTemporaryPassword, hashPassword } from '@/lib/auth/password'
 import { CANTEEN_PERMISSIONS, STAFF_PERMISSIONS } from '@/lib/auth/permissions'
 import { assertPermission, type Actor } from '@/lib/auth/guards'
 
@@ -34,12 +35,13 @@ export async function setUserAccess(actor: Actor, userId: string, active: boolea
 
 // ---------------------------------------------------------------------------
 // Canteen operator & staff accounts (created only by authorised staff).
-// They sign in with Google using exactly this email — no passwords.
+// They sign in at the Staff / Kitchen Login with this email and a temporary
+// password, which they must change at first sign-in. No Google sign-in.
 // ---------------------------------------------------------------------------
 
 export const createAccountSchema = z.object({
   kind: z.enum(['CANTEEN', 'STAFF']),
-  email: z.string().trim().toLowerCase().email('Enter the person’s Google email address').max(254),
+  email: z.string().trim().toLowerCase().email('Enter a valid email').max(254),
   name: z.string().trim().min(2, 'Enter a name').max(80),
   label: z.string().trim().max(60).optional().transform((v) => v || null),
   permissions: z.array(z.string()).max(12),
@@ -60,21 +62,25 @@ export async function createAccount(actor: Actor, input: z.input<typeof createAc
   assertPermission(actor, accountPerm(d.kind))
   const permissions = validatePermissions(d.kind, d.permissions)
   if (await db.user.findUnique({ where: { email: d.email } })) {
-    throw new AppError('CONFLICT', 'This Google email already has a CampusBite account (one email = one role).')
+    throw new AppError('CONFLICT', 'An account with this email already exists (one email = one role).')
   }
+  const tempPassword = generateTemporaryPassword()
   const user = await db.user.create({
     data: {
       email: d.email,
       name: d.name,
       role: d.kind as Role,
       status: 'ACTIVE',
+      passwordHash: await hashPassword(tempPassword),
+      mustChangePassword: true,
+      emailVerifiedAt: new Date(),
       ...(d.kind === 'CANTEEN'
         ? { canteenProfile: { create: { counterName: d.label, permissions } } }
         : { staffProfile: { create: { title: d.label, permissions } } }),
     },
   })
   await audit({ actor, action: 'account.created', entityType: 'User', entityId: user.id, metadata: { email: d.email, role: d.kind, permissions } })
-  return { userId: user.id }
+  return { userId: user.id, tempPassword }
 }
 
 async function loadManaged(actor: Actor, userId: string) {
@@ -103,4 +109,14 @@ export async function setAccountStatus(actor: Actor, userId: string, active: boo
   await db.user.update({ where: { id: userId }, data: { status: active ? 'ACTIVE' : 'DEACTIVATED' } })
   if (!active) await revokeAllSessions(userId)
   await audit({ actor, action: active ? 'account.reactivated' : 'account.deactivated', entityType: 'User', entityId: userId, metadata: { email: user.email } })
+}
+
+/** Gives a staff / kitchen account a new temporary password (they must change it at next sign-in). */
+export async function resetAccountPassword(actor: Actor, userId: string) {
+  const user = await loadManaged(actor, userId)
+  const tempPassword = generateTemporaryPassword()
+  await db.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(tempPassword), mustChangePassword: true } })
+  await revokeAllSessions(userId)
+  await audit({ actor, action: 'account.password_reset', entityType: 'User', entityId: userId, metadata: { email: user.email } })
+  return { tempPassword }
 }

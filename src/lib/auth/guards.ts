@@ -41,6 +41,7 @@ export async function requirePortalUser(role: Role, permission?: Permission): Pr
   const user = await getSessionUser()
   if (!user) redirect(PORTAL_LOGIN[role])
   if (user.role !== role) redirect(PORTAL_HOME[user.role])
+  if (user.mustChangePassword) redirect('/account/password')
   if (permission && !user.permissions.includes(permission)) redirect(`${PORTAL_HOME[role]}?denied=1`)
   return user
 }
@@ -54,6 +55,7 @@ export async function requireActor(
   if (!user) throw new AppError('UNAUTHORIZED', 'Please sign in again.')
   const allowed = Array.isArray(roles) ? roles : [roles]
   if (!allowed.includes(user.role)) throw new AppError('FORBIDDEN', 'You do not have access to this.')
+  if (user.mustChangePassword) throw new AppError('FORBIDDEN', 'Please change your password first.')
   if (permission && !user.permissions.includes(permission)) {
     throw new AppError('FORBIDDEN', 'You do not have permission to do this.')
   }
