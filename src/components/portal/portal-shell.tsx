@@ -197,12 +197,13 @@ export function PortalShell({
           className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
           aria-label="Quick navigation"
         >
-          <ul className="grid grid-cols-5">
+          {/* Equal-width tabs for however many items there are, centred on wider screens */}
+          <ul className="mx-auto flex max-w-lg">
             {bottomNav.map((item) => {
               const Icon = ICONS[item.icon]
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
               return (
-                <li key={item.href}>
+                <li key={item.href} className="min-w-0 flex-1">
                   <Link
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
