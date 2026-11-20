@@ -190,7 +190,7 @@ Customers can permanently delete their account from **Profile → Delete account
 npm test
 ```
 
-98 tests. Integration tests run against `<your database>_test` (created/migrated automatically with `prisma migrate deploy`; tables are truncated per test — the runner refuses any database not ending in `_test`). Covered:
+99 tests. Integration tests run against `<your database>_test` (created/migrated automatically with `prisma migrate deploy`; tables are truncated per test — the runner refuses any database not ending in `_test`). Covered:
 
 - Google sign-in (Supabase replaced by an in-memory fake with PKCE): first sign-in creates one USER, simultaneous first sign-ins, returning users, deactivated accounts, identity takeover, staff/kitchen emails refused; staff/kitchen password login, wrong portal, temporary password → forced change, admin reset, rate limiting (incl. atomicity under concurrency)
 - Menu availability, cart calculations, server-side pricing (client prices ignored)

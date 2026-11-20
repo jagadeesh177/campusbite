@@ -18,7 +18,7 @@ Legend: ✅ done & verified · 🟡 works, needs attention · ⛔ not built
 | Payments | ✅ | Razorpay **live**; signature + server-side fetch before confirming; idempotent webhooks; a duplicate second payment is refunded automatically |
 | Refunds | ✅ | Normal speed (5–7 working days); never shown as refunded before staff confirm the bank credit; double-refund protection |
 | Realtime | ✅ | SSE + polling fallback, filtered per user/role |
-| Tests | ✅ | 98 passing (unit + integration) |
+| Tests | ✅ | 99 passing (unit + integration) |
 | Deployment | ✅ | Vercel (Singapore) + Neon Postgres; daily cron for reconciliation, expiry and cleanup |
 
 ## Known gaps

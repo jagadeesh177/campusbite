@@ -28,6 +28,7 @@ Checked: every server action, API route and page guard; sessions and cookies; pa
 | Payment verify and *Check payment status* had no rate limit (each call hits Razorpay's API) | Low | 20 per user per 10 minutes |
 | A photo uploaded while editing a non-existent menu item was stored anyway | Low | Item checked first |
 | Logged-out visit to `/account/password` went to the customer login | Low | Goes to the Staff Login |
+| A brief network drop while starting a Razorpay payment failed the checkout (seen twice locally: the SDK crashes with "reading 'status'" when it gets no response) | Medium (lost sales) | Order creation is retried once (it moves no money); if it still fails, the order is cancelled and the customer is told they were not charged. Test added |
 
 Confirmed secure (tested): roles come only from the database; users cannot open other users' orders or payment pages; staff/kitchen/customer portals refuse other roles; forged payment confirmations, cross-site requests, unsigned webhooks and unauthorised cron calls are refused; payments are confirmed only after signature + server-side fetch from Razorpay with amount and currency checks; webhooks are processed once; one refund per payment with a database claim against double sending; pickup codes are single use; uploads are checked by file content; no secrets in browser code (only `.env.example` was ever committed); only parameterised SQL; QR SVGs are generated server-side; error pages show no internals; cookies are `__Host-`, HttpOnly, Secure, SameSite=Lax; CSP, HSTS, X-Frame-Options DENY, nosniff and Referrer-Policy are sent.
 
@@ -55,7 +56,7 @@ Dependency advisories (`npm audit`): PostCSS (inside Next) and `deepmerge-ts` (P
 | Check | Result |
 |---|---|
 | Production build, TypeScript, ESLint | PASS |
-| Automated tests (98) | PASS |
+| Automated tests (99) | PASS |
 | Unauthenticated access to portals, APIs, cron, webhook | PASS |
 | Security headers | PASS |
 | Staff login: wrong password refused, correct password, all 10 staff pages load | PASS |
