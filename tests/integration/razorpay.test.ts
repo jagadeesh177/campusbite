@@ -12,6 +12,7 @@ const fake = vi.hoisted(() => ({
   payments: new Map<string, FakePayment>(),
   captures: 0,
   seq: 0,
+  dropNextOrderCreate: 0,
   refunds: [] as { id: string; payment_id: string; amount: number; status: string; notes: Record<string, string> }[],
 }))
 
@@ -19,6 +20,8 @@ vi.mock('razorpay', () => ({
   default: class FakeRazorpay {
     orders = {
       create: async (o: { amount: number }) => {
+        // Network drop: the real SDK then fails without an HTTP status
+        if (fake.dropNextOrderCreate > 0 && fake.dropNextOrderCreate--) throw new TypeError("Cannot read properties of undefined (reading 'status')")
         const id = `order_test${++fake.seq}`
         fake.orders.set(id, { id, amount: o.amount })
         return { id }
@@ -85,6 +88,7 @@ beforeEach(async () => {
   fake.payments.clear()
   fake.captures = 0
   fake.refunds.length = 0
+  fake.dropNextOrderCreate = 0
 })
 
 async function newOrder() {
@@ -199,6 +203,21 @@ describe('Razorpay checkout verification', () => {
     const row = await prisma.payment.findFirstOrThrow({ where: { orderId: co.orderId } })
     expect(await reconcileRazorpayPayment(row.id)).toBe('pending')
     expect(await orderStatus(co.orderId)).toBe('PAYMENT_PENDING')
+  })
+
+  it('checkout survives one dropped connection to Razorpay; two in a row cancel the order without charging', async () => {
+    const { actor } = await createUser()
+    fake.dropNextOrderCreate = 1
+    const ok = await createOrder(actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() })
+    expect(ok.gatewayOrderId).toMatch(/^order_test/)
+    expect(await orderStatus(ok.orderId)).toBe('PAYMENT_PENDING')
+
+    await prisma.order.update({ where: { id: ok.orderId }, data: { status: 'CANCELLED' } }) // free the one-unpaid-order slot
+    fake.dropNextOrderCreate = 2
+    await expect(createOrder(actor, { items: [{ foodItemId: menu.samosa.id, quantity: 1 }], idempotencyKey: uuid() })).rejects.toSatisfy(
+      (e: unknown) => e instanceof AppError && /not been charged/.test(e.message),
+    )
+    expect(await prisma.order.count({ where: { userId: actor.userId, cancelReason: 'Payment could not be started' } })).toBe(1)
   })
 
   it('duplicate payment attempt: double-submitting checkout reuses one order and one Razorpay order', async () => {

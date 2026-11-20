@@ -93,13 +93,23 @@ export class RazorpayGateway implements PaymentGateway {
     this.client = new Razorpay({ key_id: keyId, key_secret: keySecret })
   }
 
+  /**
+   * Creating a Razorpay order moves no money, so a request that got no answer
+   * at all (network drop: the SDK then fails without an HTTP status) is safely
+   * retried once. Razorpay's own refusals (4xx/5xx) are not retried.
+   */
   async createOrder(i: CreateGatewayOrderInput) {
-    const order = await this.client.orders.create({
-      amount: i.amountPaise,
-      currency: 'INR',
-      receipt: i.receipt,
-      notes: i.notes,
-    })
+    const create = () =>
+      this.client.orders.create({ amount: i.amountPaise, currency: 'INR', receipt: i.receipt, notes: i.notes })
+    let order
+    try {
+      order = await create()
+    } catch (e) {
+      if ((e as { statusCode?: number })?.statusCode) throw e
+      console.warn('[razorpay] no response creating order; retrying once')
+      await new Promise((r) => setTimeout(r, 500))
+      order = await create()
+    }
     return { gatewayOrderId: order.id }
   }
 
