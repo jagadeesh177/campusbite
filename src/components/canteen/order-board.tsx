@@ -48,7 +48,7 @@ function chime() {
 export function OrderBoard({ orders, tz }: { orders: BoardOrder[]; tz: string }) {
   const router = useRouter()
   const [tab, setTab] = useState('new')
-  const [sound, setSound] = useState(false)
+  const [sound, setSound] = useState(true) // new-order sound is on by default; the kitchen can switch it off
   const [now, setNow] = useState(() => Date.now())
   const [flash, setFlash] = useFlash()
   const soundRef = useRef(sound)
