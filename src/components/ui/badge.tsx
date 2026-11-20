@@ -115,7 +115,9 @@ const PAYMENT_TONE: Record<string, BadgeTone> = {
   REFUNDED: 'violet',
 }
 
-export function PaymentStatusBadge({ status }: { status: string }) {
+export function PaymentStatusBadge({ status, orderCancelled }: { status: string; orderCancelled?: boolean }) {
+  // An unpaid attempt on a cancelled order is not an error for the customer: nothing was taken
+  if (orderCancelled && (status === 'FAILED' || status === 'CREATED')) return <Badge tone="neutral">Not paid</Badge>
   return (
     <Badge tone={PAYMENT_TONE[status] ?? 'neutral'}>{PAYMENT_STATUS_LABEL[status] ?? status}</Badge>
   )

@@ -127,7 +127,7 @@ export default async function OrderDetailPage({
               </dl>
               {order.payment && (
                 <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-muted">
-                  Payment: <PaymentStatusBadge status={order.payment.status} />
+                  Payment: <PaymentStatusBadge status={order.payment.status} orderCancelled={order.status === 'CANCELLED'} />
                   {order.payment.method && <span>· {order.payment.method}</span>}
                   {order.payment.provider === 'SIMULATOR' && <span className="text-warning-ink">· simulated</span>}
                 </div>

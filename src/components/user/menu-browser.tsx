@@ -40,19 +40,19 @@ export function MenuBrowser({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <label className="relative flex-1">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <label className="relative min-w-0 flex-1">
           <span className="sr-only">Search the menu</span>
           <Search className="pointer-events-none absolute top-1/2 left-3.5 h-4.5 w-4.5 -translate-y-1/2 text-muted" />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search dosa, sandwich, coffee…"
+            placeholder="Search the menu"
             className="h-11 w-full rounded-xl border border-line bg-surface pr-3 pl-10 text-base sm:text-[15px] shadow-[inset_0_1px_1px_rgb(23_63_53/0.03)] focus:border-accent focus:shadow-[var(--shadow-focus)] focus:outline-none"
           />
         </label>
-        <label className="inline-flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-line bg-surface px-4 text-sm font-medium">
+        <label className="inline-flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-line bg-surface px-3 text-sm font-medium sm:gap-2.5 sm:px-4">
           <input type="checkbox" checked={vegOnly} onChange={(e) => setVegOnly(e.target.checked)} className="h-4 w-4 accent-[var(--color-success)]" />
           Veg only
         </label>
@@ -83,7 +83,7 @@ export function MenuBrowser({
       {visible.length === 0 ? (
         <EmptyState icon={UtensilsCrossed} title="Nothing matches" description="Try a different search or category." className="mt-6" />
       ) : (
-        <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-5 grid gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
           {visible.map((item) => (
             <FoodCard key={item.id} item={item} />
           ))}

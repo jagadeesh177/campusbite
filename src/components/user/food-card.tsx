@@ -82,35 +82,43 @@ export function FoodCard({ item, layout = 'grid' }: { item: MenuItemView; layout
     )
   }
 
+  // Phones: compact row (thumbnail left) so several dishes fit on one screen.
+  // Tablets and up: photo card in a grid.
   return (
     <div
       className={cn(
-        'group flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-card transition hover:shadow-lift',
+        'group flex gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-3 shadow-card transition hover:shadow-lift sm:flex-col sm:gap-0 sm:overflow-hidden sm:p-0',
         !item.isAvailable && 'opacity-75',
       )}
     >
-      <div className="relative">
-        <FoodImage src={item.imageUrl} alt={item.name} className="aspect-[16/9] w-full sm:aspect-[4/3]" />
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl sm:h-auto sm:w-full sm:rounded-none">
+        <FoodImage
+          src={item.imageUrl}
+          alt={item.name}
+          sizes="(max-width: 640px) 96px, 400px"
+          className="h-full w-full sm:aspect-[4/3] sm:h-auto"
+        />
         {item.isPopular && item.isAvailable && (
-          <span className="absolute top-3 left-3 rounded-full bg-surface/95 px-2.5 py-1 text-xs font-semibold text-accent-ink shadow-sm">
+          <span className="absolute top-3 left-3 hidden rounded-full bg-surface/95 px-2.5 py-1 text-xs font-semibold text-accent-ink shadow-sm sm:inline">
             ★ Popular
           </span>
         )}
       </div>
-      <div className="flex flex-1 flex-col p-4">
+      <div className="flex min-w-0 flex-1 flex-col sm:p-4">
         <div className="flex items-start gap-2">
           <VegMark isVeg={item.isVeg} className="mt-1" />
           <h3 className="font-semibold leading-snug text-ink">{item.name}</h3>
         </div>
         <p className="mt-1 line-clamp-2 text-sm text-muted">{item.description}</p>
-        <div className="mt-2 flex items-center gap-3 text-xs text-subtle">
-          <span className="rounded-md bg-bg px-2 py-0.5 font-medium">{item.categoryName}</span>
+        <div className="mt-1.5 flex items-center gap-3 text-xs text-subtle sm:mt-2">
+          {item.isPopular && item.isAvailable && <span className="font-semibold text-accent-ink sm:hidden">★ Popular</span>}
+          <span className="hidden rounded-md bg-bg px-2 py-0.5 font-medium sm:inline">{item.categoryName}</span>
           <span className="inline-flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" /> {item.prepTimeMinutes} min
           </span>
         </div>
-        <div className="mt-auto flex items-center justify-between pt-4">
-          <span className="text-lg font-bold text-primary tabular-nums">{formatINR(item.pricePaise)}</span>
+        <div className="mt-auto flex items-center justify-between pt-2 sm:pt-4">
+          <span className="text-base font-bold text-primary tabular-nums sm:text-lg">{formatINR(item.pricePaise)}</span>
           {action}
         </div>
       </div>

@@ -23,7 +23,7 @@ College canteen pre-ordering platform. Users order from anywhere on campus, pay 
 ### Why not Socket.IO / Auth.js?
 
 - **Realtime:** Vercel runs serverless functions; Socket.IO needs a long-lived server. CampusBite writes a `RealtimeEvent` row in the *same transaction* as each change, and `/api/events` streams rows the signed-in user is allowed to see. Clients reconnect automatically and fall back to 5-second polling. No extra service or credentials needed. If you later want push at large scale, swap the transport (Pusher/Ably) behind `src/lib/realtime/` without touching business logic.
-- **Auth:** users register, verify their email, manage passwords and sign in through **Supabase Auth**; staff and canteen accounts are created by administrators and use CampusBite's own password login. In both cases CampusBite then issues its own HTTP-only session (`src/lib/auth/session.ts`), so every role decision stays on the server.
+- **Auth:** customers sign in with **Google only** (Supabase Auth runs the OAuth/PKCE flow); a first Google sign-in creates a `USER` account. Staff and kitchen accounts are created by an administrator and sign in with email + password. In both cases CampusBite then issues its own HTTP-only session (`src/lib/auth/session.ts`), so every role decision stays on the server.
 
 ---
 
@@ -63,7 +63,7 @@ Business logic lives in `src/lib/**` as plain functions that take an explicit `A
 
 | Portal | Menu | What it's for |
 |---|---|---|
-| **User** (`/login/user`) | Home · Cart · My Orders · Profile | Home = menu with search and categories plus your current order. Cart = items, pickup time and Pay on one page. My Orders = live tracking with pickup code/QR on top, past orders below. Profile = details, password, delete account. |
+| **User** (`/login`, Google) | Home · Cart · My Orders · Profile | Home = menu with search and categories plus your current order. Cart = items, pickup time and Pay on one page. My Orders = live tracking with pickup code/QR on top, past orders below. Profile = details, delete account. |
 | **Canteen** (`/login/canteen`) | Orders · Verify pickup · History · Menu | Orders board in four columns (New, Preparing, Ready, Completed) with big action buttons and a Pause/Resume switch for new orders. Verify pickup by QR or code. Menu = add/edit food, prices, sold out. |
 | **Staff** (`/login/staff`) | Dashboard · Orders · Users · Menu · Payments · Reports · Accounts · Settings | Dashboard = today's numbers + latest orders. Accounts = canteen and staff accounts (tabs). Settings = kitchen hours/fees and the activity log (tabs). Menu items depend on each staff member's permissions. |
 
@@ -75,9 +75,9 @@ Old links keep working: `/user/menu` → Home, `/user/history` → My Orders, `/
 
 | Role | Who | How the account is created | Portal |
 |---|---|---|---|
-| `USER` | Students, teachers and all college employees who order food | Self-registration with any personal email (`/activate`), verified by email link | `/login/user` → `/user/dashboard` |
-| `STAFF` | Authorised administrators who manage the platform | Created by an administrator only | `/login/staff` |
-| `CANTEEN` | Canteen operators who manage food items and orders | Created by an administrator only | `/login/canteen` |
+| `USER` | Students, teachers and all college employees who order food | Automatically on the first **Continue with Google** | `/login` → `/user/dashboard` |
+| `STAFF` | Authorised administrators who manage the platform | Created by an administrator only (email + password) | `/login/staff` |
+| `CANTEEN` | Canteen operators who manage food items and orders | Created by an administrator only (email + password) | `/login/canteen` |
 
 The role is always assigned on the server and read from CampusBite's database — never from a form or from Supabase.
 
@@ -143,56 +143,46 @@ Created by the seed. **Never shown on login pages.** Delete or change them befor
 | Canteen (manager) | `kitchen@college.edu` | `Canteen@123` | orders, menu, settings |
 | Canteen (counter) | `counter@college.edu` | `Canteen@123` | orders only |
 
-**Try user registration:** go to `/activate`, sign up with any real personal email you can open, and follow the link in the email. This needs Supabase configured (see below) — there is no mock email delivery.
+Demo **users** keep their seeded password hash but customers can only sign in with Google, so locally use *Continue with Google* (Supabase must be configured) or the staff/kitchen accounts.
 
 **Testing two roles at once in one browser:** cookies are per host, so use `http://localhost:3000` for one role and `http://127.0.0.1:3000` (or `127.0.0.2`) for another.
 
 ---
 
-## User registration (Supabase Auth)
+## Sign-in
 
-Users sign up with **any valid personal email** (Gmail, Outlook, Yahoo, …). There is no college email rule and CampusBite does not connect to any college database. Staff and canteen accounts are still created only by administrators.
+| Who | Where | How |
+|---|---|---|
+| Customers | `/login` | **Continue with Google** only. The first Google sign-in creates a `USER` account; later sign-ins find it by Google identity, then by email, so one person never gets two accounts. |
+| Staff | `/login/staff` | Email + password. Accounts are created only by an administrator (**Staff → Accounts**) with a one-time temporary password that must be changed at first sign-in. |
+| Kitchen | `/login/canteen` | Same as staff, under **Staff → Canteen operators**. |
 
-1. **`/activate`** — *Create Your CampusBite Account*: email, full name, mobile number, optional department → **Activate My Account**.
-2. The server validates the input, creates a **pending** `USER` account (role assigned server-side; it cannot sign in yet) and asks Supabase Auth to email an activation link (`signInWithOtp`).
-3. The user sees *"Check your inbox! We've sent you an activation link."* with a **Resend activation email** button.
-4. The link opens **`/auth/confirm`** — *Create Your Password*. Opening the page does **not** use the link up (so email scanners can't burn it); Supabase verifies it only when the password is submitted, enforcing **expiry and single use**.
-5. CampusBite sets the password in Supabase, activates the account, signs the user in with its own session and shows *"Your CampusBite account is ready!"* on the User Dashboard.
-
-**Forgot password** (`/forgot-password`) sends a Supabase recovery link to the same page. Users sign in at `/login/user` through Supabase (`signInWithPassword`). Demo users created by the seed script (no Supabase account yet) keep their local password until they use *Forgot password*, which moves them to Supabase.
-
-**Limits and edge cases:** one email per address every 15 minutes (registration and reset separately), 10 emails per hour per network, plus Supabase's own limits. Duplicate emails get the same "check your inbox" response without an email (no account enumeration) and a hint to sign in or reset. Staff/canteen emails can never become users. If Supabase can't send, the user sees an error, nothing is activated, and they can retry immediately. All requests are written to the activity log — never passwords or tokens.
+- Google never creates, links or promotes staff/kitchen accounts: a staff or kitchen email that arrives through Google is refused ("Staff and kitchen accounts can't use Google…").
+- Forgotten staff/kitchen passwords are reset by an administrator (**Reset password** gives a new temporary password and signs the person out).
+- The very first administrator sets their password from a terminal, never through chat or a web form: `npx tsx prisma/set-password.ts you@example.com` (runs against `DATABASE_URL`; the password is typed hidden and never printed).
+- Limits: 5 password attempts per email + network every 15 minutes, 30 per email per hour, 40 per network; Google callback 30 per network per 15 minutes.
 
 ### Delete account
 
-Users can permanently delete their account from **User Profile → Delete account** (password + typing `DELETE`). It cannot be undone:
+Customers can permanently delete their account from **Profile → Delete account** (type `DELETE`). It cannot be undone:
 
-- Personal data (name, email, mobile, preferences, notifications, sessions) is erased and the Supabase login is deleted.
+- Personal data (name, email, mobile, preferences, notifications, sessions) is erased.
 - Accounts with no orders are removed completely. Accounts with past orders are anonymised (`Deleted user`, placeholder email) so orders and payments stay as anonymous records for the canteen's accounts; unpaid orders are cancelled.
 - Deletion is refused while an order is being prepared, is ready, or has a refund pending. Staff cannot restore a deleted account.
-- Requires the Supabase function in [`supabase/delete_own_user.sql`](supabase/delete_own_user.sql) (run once in the SQL Editor). It lets a signed-in user delete only their own login, so no service-role key is stored.
+- Signing in with Google again later starts a brand-new, empty account.
 
-### Supabase + Resend configuration
-
-**Environment variables** (Vercel → Settings → Environment Variables, and `.env` locally):
+### Supabase + Google configuration
 
 | Variable | Value |
 |---|---|
-| `SUPABASE_URL` | Project URL, e.g. `https://abcd1234.supabase.co` (Supabase → Project Settings → API) |
-| `SUPABASE_ANON_KEY` | The project's **anon / publishable** key (same page). The service-role key is **not** needed. |
+| `SUPABASE_URL` | Project URL (Supabase → Project Settings → API) |
+| `SUPABASE_ANON_KEY` | The project's **anon / publishable** key. The service-role key is **not** needed. |
 | `APP_URL` | Public HTTPS address, e.g. `https://getcampusbite.vercel.app` |
 
-**Supabase dashboard** (Authentication section):
-
-1. **URL Configuration** → Site URL = your `APP_URL`; add `https://getcampusbite.vercel.app/**` and `http://localhost:3000/**` to Redirect URLs.
-2. **Sign In / Providers → Email**: enabled. Set **Email OTP Expiration** to `900` seconds (15 minutes).
-3. **Email Templates** — make the links point to CampusBite's confirm page:
-   - *Confirm signup* and *Magic Link*: `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">Activate My Account</a>`
-   - *Reset Password*: `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery">Reset my password</a>`
-4. **SMTP Settings** → enable custom SMTP with **Resend**: host `smtp.resend.com`, port `465`, username `resend`, password = a Resend API key, sender e.g. `CampusBite <no-reply@your-domain>`.
-5. **Rate Limits** → raise *emails sent per hour* if needed (Supabase's built-in sender is limited to a few emails per hour and is not for production).
-
-**Resend:** create an account, **verify a domain you own** (add the DNS records Resend shows), then create an API key with *sending access*. Without a verified domain Resend only delivers to your own account email, so other users would not receive links.
+1. **Google Cloud → Google Auth Platform:** External app, published (*In production*); Branding with home, privacy (`/privacy`) and terms (`/terms`) links; a *Web application* OAuth client whose redirect URI is `https://<project>.supabase.co/auth/v1/callback`. Requests only name and email, so no Google review is needed (adding a logo would trigger one).
+2. **Supabase → Authentication → Sign In / Providers → Google:** enabled, with that client's ID and secret.
+3. **Supabase → URL Configuration:** Site URL = `APP_URL`; Redirect URLs include `https://getcampusbite.vercel.app/**` and `http://localhost:3000/**` (local sign-in therefore needs port 3000).
+4. Run [`supabase/delete_own_user.sql`](supabase/delete_own_user.sql) once in the SQL Editor: a refused Google sign-in removes its stray Supabase login without storing a service-role key.
 
 ## Tests
 
@@ -200,16 +190,16 @@ Users can permanently delete their account from **User Profile → Delete accoun
 npm test
 ```
 
-68 tests. Integration tests run against `<your database>_test` (created/migrated automatically with `prisma migrate deploy`; tables are truncated per test — the runner refuses any database not ending in `_test`). Covered:
+98 tests. Integration tests run against `<your database>_test` (created/migrated automatically with `prisma migrate deploy`; tables are truncated per test — the runner refuses any database not ending in `_test`). Covered:
 
-- Authentication, portal/role locking, deactivated accounts, enrollment re-checks, rate limiting (incl. atomicity under concurrency)
-- User registration (Supabase Auth replaced by an in-memory fake that enforces expiry and single use): Gmail/Outlook/Yahoo/other emails, invalid emails and details, duplicates (active user, staff email), failed email delivery, Supabase not configured, resend rate limiting (per email and per network), activation → USER role → login, link reuse incl. simultaneous submissions, expired/invalid links, weak passwords, staff email can't become a user, unconfirmed Supabase user, password reset, demo-account migration
+- Google sign-in (Supabase replaced by an in-memory fake with PKCE): first sign-in creates one USER, simultaneous first sign-ins, returning users, deactivated accounts, identity takeover, staff/kitchen emails refused; staff/kitchen password login, wrong portal, temporary password → forced change, admin reset, rate limiting (incl. atomicity under concurrency)
 - Menu availability, cart calculations, server-side pricing (client prices ignored)
 - Order creation idempotency under 6 simultaneous submissions; 8 users ordering at once; kitchen capacity
 - Payment verification, amount/currency mismatch (fake confirmation), cross-user payment attempts, failed-then-retried payments
 - Webhook signature verification and duplicate-delivery idempotency
 - Status transitions: skipped steps, wrong roles, missing permissions, concurrent updates
-- Refunds: rejection auto-refund, late payment after expiry, single gateway call under concurrent clicks
+- Refunds: rejection auto-refund, late payment after expiry, single gateway call under concurrent clicks, duplicate second payment refunded exactly once
+- Daily cleanup removes only expired sessions, old live-update events and stale rate-limit counters
 - Pickup: single use, concurrent scans, not-ready orders, mismatched QR, wrong roles
 
 ---
@@ -220,13 +210,13 @@ npm test
 2. **Environment variables** (Vercel → Project → Settings → Environment Variables): everything in `.env.example`. In production set:
    - `PAYMENT_PROVIDER="razorpay"`, Razorpay keys, `PAYMENT_SIMULATOR_ENABLED="false"`
    - `APP_URL` to your HTTPS domain
-   - `SUPABASE_URL` and `SUPABASE_ANON_KEY`, with Supabase configured to send through Resend (see *Supabase + Resend configuration*) — required for user registration
+   - `SUPABASE_URL` and `SUPABASE_ANON_KEY`, with the Google provider configured (see *Supabase + Google configuration*) — required for customer sign-in
 3. **Build command:** Vercel uses `npm run vercel-build` automatically, which runs `prisma generate && prisma migrate deploy && next build`.
-4. **Region:** `vercel.json` pins functions to Mumbai (`bom1`); put the database in the same region.
-5. **Cron:** `vercel.json` schedules `/api/cron/expire-orders` daily (Hobby plan limit). Unpaid orders are also expired automatically before every checkout and whenever the kitchen board loads. On a Pro plan you can run it every 15 minutes.
+4. **Region:** `vercel.json` pins functions to Singapore (`sin1`); put the database in the same region.
+5. **Cron:** `vercel.json` schedules `/api/cron/expire-orders` daily (Hobby plan limit): it reconciles missed payments and refunds, expires unpaid orders and purges expired sessions, old live-update events and stale rate-limit counters. Unpaid orders are also expired automatically before every checkout and whenever the kitchen board loads. On a Pro plan you can run it every 15 minutes.
 6. **Razorpay Test Mode (no real money):** create a Razorpay account (no KYC needed for Test Mode) → **Get test keys**. Put `RAZORPAY_KEY_ID` (`rzp_test_…`) and `RAZORPAY_KEY_SECRET` in `.env` locally, or in Vercel → Project → Settings → Environment Variables, together with `PAYMENT_PROVIDER="razorpay"` and `PAYMENT_SIMULATOR_ENABLED="false"`. Live keys (`rzp_live_…`) are refused unless `RAZORPAY_ALLOW_LIVE="true"`. Test card: `4386 2894 0766 0153`, any future expiry, any CVV, any OTP. UPI (app redirect on phones, QR on laptops) appears first in checkout once UPI is enabled on the Razorpay account.
 7. **Razorpay webhooks:** Dashboard → Webhooks → URL `https://<domain>/api/payments/razorpay/webhook`, events `payment.captured`, `payment.failed`, `order.paid`, `refund.processed`, `refund.failed`, secret = `RAZORPAY_WEBHOOK_SECRET`. Enable **automatic capture** and UPI on the account. Start with **test-mode** keys.
-7. **Do not seed production.** Create the first admin account with a one-off script or SQL, then create everyone else from the staff portal.
+8. **Do not seed production.** Set the first administrator's password with `npx tsx prisma/set-password.ts <email>`, then create everyone else from the staff portal.
 
 ### Production checklist
 

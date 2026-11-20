@@ -114,7 +114,7 @@ export function CheckoutView({
                       <span className="truncate font-semibold">{q?.name ?? line.name}</span>
                     </div>
                     <div className="text-xs text-muted">
-                      {formatINR(q?.unitPaise ?? line.unitPaise)} · {line.quantity} × item
+                      {formatINR(q?.unitPaise ?? line.unitPaise)} each
                     </div>
                     {problem && (
                       <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-danger-ink">

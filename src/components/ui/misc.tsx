@@ -121,18 +121,21 @@ export function FoodImage({
   alt,
   className,
   eager,
+  sizes = '(max-width: 640px) 100vw, 400px',
 }: {
   src: string | null
   alt: string
   className?: string
   /** Load immediately (for above-the-fold images) */
   eager?: boolean
+  /** Displayed width, so the optimiser sends a right-sized file */
+  sizes?: string
 }) {
   return (
     <div className={cn('relative overflow-hidden bg-accent-soft', className)}>
       {src ? (
         // Resized + WebP via the Next.js image optimiser (photos are ~200 KB originals)
-        <Image src={src} alt={alt} fill sizes="(max-width: 640px) 100vw, 400px" priority={eager} className="object-cover" />
+        <Image src={src} alt={alt} fill sizes={sizes} priority={eager} className="object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-3xl" aria-hidden>
           🍽️

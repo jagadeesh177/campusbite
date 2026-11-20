@@ -18,7 +18,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(PORTALS[portal], req.url))
   }
   if (pathname.startsWith('/account') && !hasSession) {
-    return NextResponse.redirect(new URL('/login', req.url))
+    return NextResponse.redirect(new URL('/login/staff', req.url)) // password change is for staff/kitchen only
   }
   return NextResponse.next()
 }

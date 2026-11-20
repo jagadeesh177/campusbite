@@ -1,67 +1,41 @@
 # Development status
 
-Last updated: 16 Nov 2026
+Last updated: 20 Nov 2026 · Live at https://getcampusbite.vercel.app
 
-Legend: ✅ done & verified · 🟡 done, needs external setup · ⛔ not built yet
+Legend: ✅ done & verified · 🟡 works, needs attention · ⛔ not built
 
 ## Summary
 
 | Area | Status | Notes |
 |---|---|---|
-| Public website | ✅ | Landing (hero, how it works, features, contact), about, support, privacy, terms |
-| Authentication & sessions | ✅ | 3 portals, DB sessions, bcrypt, rate limiting, forced password change for admin-created accounts |
-| Role-based access | ✅ | Enforced in layouts, pages, server actions, API routes and services |
-| User registration | ✅ | Any personal email via **Supabase Auth** (pending `USER` account → activation link → create password → dashboard), resend with rate limiting, password reset; 20 tests against a Supabase fake. **Real delivery verified** on 16 Nov 2026 through Supabase custom SMTP (Gmail, sender *CampusBite*): the *Activate Your CampusBite Account* email reached a Gmail inbox and its link opened *Create Your Password* on the live site; a second activation was sent to another Gmail account. Gmail SMTP allows ~500 emails/day — switch Supabase SMTP to Resend with a verified domain for larger volume |
-| User portal | ✅ | Home (menu + search + current order), one-page cart & checkout with pickup slots, payment, live tracking with QR/code, My Orders (current + past), profile, change password, permanent account deletion |
-| Canteen portal | ✅ | Orders board (New / Preparing / Ready / Completed) with pause/resume switch, accept/reject/prepare/ready, pickup verification (QR camera + manual), history, menu |
-| Staff portal | ✅ | Dashboard (today), all orders, users, menu, payments/refunds, reports + CSV, accounts (canteen + staff), settings + activity log |
-| Payments | 🟡 | Razorpay integration written (orders, checkout verification, webhooks, refunds) but **not yet run against real Razorpay** — needs merchant keys. Simulator verified |
-| Refunds | ✅ | Automatic on rejection/late payment; staff retry; double-refund protection |
-| Pickup tokens | ✅ | Single use, order-bound QR, concurrent-scan safe |
-| Realtime | ✅ | SSE + polling fallback, audience-filtered |
-| Tests | ✅ | 73 passing (unit + integration) |
-| Deployment config | 🟡 | `vercel.json`, `vercel-build`, env template — not yet deployed |
+| Public website | ✅ | Landing, about, support, privacy, terms, refund and shipping policies |
+| Customer sign-in | ✅ | **Google only** (Supabase Auth, PKCE). First sign-in creates a `USER`; Google app published (*In production*). Verified live and on localhost |
+| Staff / kitchen sign-in | ✅ | Email + password, accounts created only by an administrator, temporary password → forced change, admin reset. Verified live and on localhost |
+| Role-based access | ✅ | Enforced in middleware, layouts, pages, server actions, API routes and services; roles read only from the database |
+| Customer portal | ✅ | Menu (compact list on phones, photo grid on larger screens), cart & checkout, Razorpay payment, live tracking with pickup QR/code, cancel, profile, delete account |
+| Kitchen portal | ✅ | Orders board with pause/resume, accept → prepare → ready, pickup verification (QR camera + code), history, menu |
+| Staff portal | ✅ | Dashboard, orders, users, menu, payments & refunds, reports + CSV, accounts, settings + activity log |
+| Payments | ✅ | Razorpay **live**; signature + server-side fetch before confirming; idempotent webhooks; a duplicate second payment is refunded automatically |
+| Refunds | ✅ | Normal speed (5–7 working days); never shown as refunded before staff confirm the bank credit; double-refund protection |
+| Realtime | ✅ | SSE + polling fallback, filtered per user/role |
+| Tests | ✅ | 98 passing (unit + integration) |
+| Deployment | ✅ | Vercel (Singapore) + Neon Postgres; daily cron for reconciliation, expiry and cleanup |
 
-## Requires external credentials or authorisation
+## Known gaps
 
-1. **Razorpay (UPI).** Create a Razorpay account (business KYC), enable UPI and auto-capture, set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `PAYMENT_PROVIDER=razorpay`, and configure the webhook (see README). Then run a test-mode payment, a failed payment and a refund end to end before going live. Until then the app uses the **development simulator**, which is labelled everywhere it appears and never described as a real payment.
-2. **Supabase Auth + Resend (user registration emails).** Set `SUPABASE_URL` and `SUPABASE_ANON_KEY`, configure the Supabase email templates, OTP expiry and Resend SMTP (README → *Supabase + Resend configuration*). Resend needs a **verified domain** to send to users' own inboxes. Until a real registration email has been received end to end, delivery is **not** confirmed.
-
-## Verified manually in the browser (production build)
-
-- Landing page, all three login portals, activation page
-- Full order lifecycle across two portals: user orders → simulated UPI → canteen accepts → preparing → ready → pickup by code → collected; user page updated live at each step without reloading
-- Pickup code reuse refused ("Already collected — do not hand over again")
-- Canteen reject with reason → automatic refund → visible in staff payments and audit log
-- Staff processes a pending refund; reports (weekly), CSV export, audit log
-- Kitchen settings change (extended hours) takes effect immediately for users
-- Unauthenticated access: portals redirect, `/api/events`, `/api/staff/export`, cron return 401; unsigned webhook returns 400; security headers present
-- Mobile (375px): user dashboard and menu, no horizontal overflow; canteen board at phone and tablet widths
-
-## Simplification (16 Nov 2026)
-
-See [docs/AUDIT.md](docs/AUDIT.md). Verified in the browser on a local build: a full order on a phone-sized screen (browse → cart → test payment → confirmed → canteen accepts → preparing → ready + notification → pickup code verified → collected), canteen history, every staff page, and wrong-role access blocked.
-
-## Known gaps & limitations
-
-- The `STUDENT` role is now `USER` (see README → Roles). Audit entries written before the rename keep their old `student.*` action names.
-
-- ✅ **Forgot password** for users via single-use email link (`/forgot-password`). Staff/canteen passwords are reset by an administrator.
-- **Demo users** from the seed script have no Supabase account; they sign in with the local demo password until they use *Forgot password*, which moves them to Supabase.
-- The old college-verification tables (`VerificationCode`, `StudentAccessToken`, `DevMailMessage`) are no longer used and can be dropped in a later migration.
-- **QR camera scanning** uses the browser `BarcodeDetector` API (Chrome/Edge on Android and desktop). Safari/iOS doesn't support it, so the pickup screen falls back to typing the 6-character code.
-- **Food images** are generated illustrations. Upload real photos from Canteen → Menu → Edit (stored in Postgres, max 1.5 MB, JPEG/PNG/WebP verified by file content).
-- **CSP** allows `'unsafe-inline'` scripts (Next.js inline bootstrap). Moving to nonce-based CSP is a hardening follow-up.
-- **No automated browser (E2E) tests** yet; UI flows were verified manually. Playwright tests for the main flows are a sensible next step.
-- **Vercel Hobby** allows only a daily cron; expiry also runs on every checkout and kitchen-board load, so this is not a correctness issue.
-- CSV export filenames use the UTC date.
+- **Unused tables** `PasswordReset` and `RecoverySession` (old email recovery). Kept because dropping them is a destructive migration; drop them in a later migration once approved.
+- **Dependency advisories** (`npm audit`): PostCSS and Prisma's config loader (build-time tooling only) and Zod < 4.6.6 (memory use on very large inputs; requests are capped at 2 MB). Each fix needs a major upgrade (Next 16, Prisma 7, Zod 4) — plan it separately and retest.
+- **CSP** allows `'unsafe-inline'` scripts (Next.js inline bootstrap). Nonce-based CSP is a hardening follow-up.
+- **No automated browser (E2E) tests**; flows were checked by hand in a local production build. Playwright for the main flows is a sensible next step.
+- **QR scanning** uses `BarcodeDetector` (Chrome/Edge). Safari/iOS staff type the 6-character code instead.
+- **Neon cold starts**: the free database sleeps when idle; the app allows 15 s to connect so the first request after a quiet period does not fail.
+- **Vercel Hobby** runs the cron once a day; expiry also runs at checkout and when the kitchen board loads.
 
 ## Decisions log
 
-- Realtime via SSE + event table instead of Socket.IO — works on serverless without another paid service.
-- Users authenticate with Supabase Auth, after which CampusBite issues its own HTTP-only DB session; staff/canteen keep admin-managed passwords. Roles always come from CampusBite's database, never from Supabase.
-- Supabase is called only with the public anon key on behalf of the user; no service-role key is stored.
+- Customers: Google only. Staff/kitchen: admin-managed email + password. CampusBite issues its own HTTP-only DB session; roles always come from CampusBite's database, never from Google or Supabase.
+- Supabase is used only with the public anon key; no service-role key is stored.
+- Realtime via SSE + an event table instead of Socket.IO — works on serverless without another service.
 - Money stored as `DECIMAL(10,2)`, computed in integer paise.
-- Order confirmation only through `confirmPayment()` after signature + server-side checks; row lock + compare-and-set make it idempotent.
-- Activation never reveals whether an email belongs to a user (no enumeration).
+- Orders are confirmed only by `confirmPayment()` after verified payment; row lock + compare-and-set make it idempotent.
 - Images stored in Postgres to avoid a separate object store for a small menu.
